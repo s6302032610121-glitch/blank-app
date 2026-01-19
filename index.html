@@ -22,8 +22,8 @@
     <style>
         [x-cloak] { display: none !important; }
         body {
-            background-color: #0f172a;
-            color: #f1f5f9;
+            background-color: #f8fafc;
+            color: #1e293b;
             font-family: 'Inter', sans-serif;
         }
         .custom-scrollbar::-webkit-scrollbar {
@@ -31,34 +31,43 @@
             height: 6px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-            background: #1e293b;
+            background: #f1f5f9;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #475569;
+            background: #cbd5e1;
             border-radius: 3px;
         }
         .card {
-            background-color: #1e293b;
-            border: 1px solid #334155;
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
             border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
         }
         .input-group label {
             display: block;
             font-size: 0.75rem;
-            color: #94a3b8;
+            color: #64748b;
             margin-bottom: 0.25rem;
+            font-weight: 500;
         }
         .input-group input, .input-group select {
             width: 100%;
-            background-color: #0f172a;
-            border: 1px solid #334155;
-            color: #f1f5f9;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            color: #1e293b;
             padding: 0.5rem;
             border-radius: 0.25rem;
             font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            ring: 2px;
+            ring-color: #3b82f6;
         }
         .btn-primary {
-            background-color: #3b82f6;
+            background-color: #2563eb;
             color: white;
             padding: 0.5rem 1rem;
             border-radius: 0.25rem;
@@ -66,16 +75,16 @@
             transition: background-color 0.2s;
         }
         .btn-primary:hover {
-            background-color: #2563eb;
+            background-color: #1d4ed8;
         }
         .tab-active {
-            border-bottom: 2px solid #3b82f6;
-            color: #3b82f6;
+            border-bottom: 2px solid #2563eb;
+            color: #2563eb;
         }
         @media print {
             .no-print { display: none !important; }
-            body { background-color: #0f172a; color: white; -webkit-print-color-adjust: exact; }
-            .card { border: 1px solid #334155; }
+            body { background-color: white; color: black; -webkit-print-color-adjust: exact; }
+            .card { border: 1px solid #e2e8f0; box-shadow: none; }
             .page-break { page-break-before: always; }
         }
     </style>
@@ -83,22 +92,22 @@
 <body x-data="app()" x-init="init()">
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
-        <aside class="w-80 bg-slate-900 border-r border-slate-800 flex flex-col overflow-hidden no-print">
-            <div class="p-4 border-b border-slate-800 flex items-center gap-2">
-                <i data-lucide="layout" class="text-blue-500"></i>
-                <h1 class="text-xl font-bold tracking-tight">StructureCAD <span class="text-blue-500 text-xs italic">v2.1</span></h1>
+        <aside class="w-80 bg-white border-r border-slate-200 flex flex-col overflow-hidden no-print">
+            <div class="p-4 border-b border-slate-200 flex items-center gap-2">
+                <i data-lucide="layout" class="text-blue-600"></i>
+                <h1 class="text-xl font-bold tracking-tight text-slate-900">StructureCAD <span class="text-blue-600 text-xs italic">v2.1</span></h1>
             </div>
 
             <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-6">
                 <!-- Mode Switch -->
-                <div class="flex p-1 bg-slate-800 rounded-lg">
-                    <button @click="mode = 'beam'; geometry.b = 300; analyze()" :class="mode === 'beam' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400'" class="flex-1 py-1.5 text-xs font-bold rounded-md transition-all">BEAM</button>
-                    <button @click="mode = 'slab'; geometry.b = 1000; analyze()" :class="mode === 'slab' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400'" class="flex-1 py-1.5 text-xs font-bold rounded-md transition-all">SLAB</button>
+                <div class="flex p-1 bg-slate-100 rounded-lg">
+                    <button @click="mode = 'beam'; geometry.b = 300; analyze()" :class="mode === 'beam' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'" class="flex-1 py-1.5 text-xs font-bold rounded-md transition-all">BEAM</button>
+                    <button @click="mode = 'slab'; geometry.b = 1000; analyze()" :class="mode === 'slab' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'" class="flex-1 py-1.5 text-xs font-bold rounded-md transition-all">SLAB</button>
                 </div>
 
                 <!-- Project Info -->
                 <div>
-                    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Project</h2>
+                    <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Project</h2>
                     <div class="space-y-2">
                         <div class="input-group">
                             <label>Project Name</label>
@@ -109,7 +118,7 @@
 
                 <!-- Geometry Section -->
                 <div>
-                    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Geometry</h2>
+                    <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Geometry</h2>
                     <div class="space-y-4">
                         <div class="input-group">
                             <label>Span Length (m)</label>
@@ -134,7 +143,7 @@
 
                 <!-- Materials Section -->
                 <div>
-                    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Materials</h2>
+                    <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Materials</h2>
                     <div class="space-y-4">
                         <div class="input-group">
                             <label>Concrete f'c (MPa)</label>
@@ -160,13 +169,13 @@
                 <!-- Loads Section -->
                 <div>
                     <div class="flex justify-between items-center mb-3">
-                        <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">Loads</h2>
-                        <button @click="addLoad()" class="text-xs text-blue-500 hover:text-blue-400 font-medium">+ Add Load</button>
+                        <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider">Loads</h2>
+                        <button @click="addLoad()" class="text-xs text-blue-600 hover:text-blue-700 font-medium">+ Add Load</button>
                     </div>
                     <div class="space-y-3">
                         <template x-for="(load, index) in loads" :key="index">
-                            <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700 relative">
-                                <button @click="removeLoad(index)" class="absolute top-2 right-2 text-slate-500 hover:text-red-400">
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 relative">
+                                <button @click="removeLoad(index)" class="absolute top-2 right-2 text-slate-400 hover:text-red-600">
                                     <i data-lucide="x" class="w-4 h-4"></i>
                                 </button>
                                 <div class="grid grid-cols-2 gap-2">
@@ -206,7 +215,7 @@
 
                 <!-- Supports Section -->
                 <div>
-                     <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Supports</h2>
+                     <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Supports</h2>
                      <div class="grid grid-cols-2 gap-2">
                         <div class="input-group">
                             <label>Left Support</label>
@@ -229,7 +238,7 @@
                 </div>
             </div>
 
-            <div class="p-4 border-t border-slate-800 bg-slate-950">
+            <div class="p-4 border-t border-slate-200 bg-slate-50">
                 <button @click="generateReport()" class="w-full btn-primary flex items-center justify-center gap-2">
                     <i data-lucide="file-text" class="w-4 h-4"></i>
                     Export PDF Report
@@ -240,15 +249,15 @@
         <!-- Main Content -->
         <main class="flex-1 flex flex-col overflow-hidden">
             <!-- Header/Tabs -->
-            <header class="bg-slate-900 border-b border-slate-800 px-6 flex justify-between items-center no-print">
+            <header class="bg-white border-b border-slate-200 px-6 flex justify-between items-center no-print">
                 <nav class="flex gap-8">
-                    <button @click="tab = 'analysis'" :class="tab === 'analysis' ? 'tab-active' : ''" class="py-4 font-medium text-sm transition-colors hover:text-blue-400">Analysis</button>
-                    <button @click="tab = 'design'" :class="tab === 'design' ? 'tab-active' : ''" class="py-4 font-medium text-sm transition-colors hover:text-blue-400">RC Design</button>
-                    <button @click="tab = 'calculations'" :class="tab === 'calculations' ? 'tab-active' : ''" class="py-4 font-medium text-sm transition-colors hover:text-blue-400">Detailed Calcs</button>
-                    <button @click="tab = 'detailing'" :class="tab === 'detailing' ? 'tab-active' : ''" class="py-4 font-medium text-sm transition-colors hover:text-blue-400">Detailing & Cost</button>
+                    <button @click="tab = 'analysis'" :class="tab === 'analysis' ? 'tab-active' : ''" class="py-4 font-medium text-sm transition-colors hover:text-blue-600">Analysis</button>
+                    <button @click="tab = 'design'" :class="tab === 'design' ? 'tab-active' : ''" class="py-4 font-medium text-sm transition-colors hover:text-blue-600">RC Design</button>
+                    <button @click="tab = 'calculations'" :class="tab === 'calculations' ? 'tab-active' : ''" class="py-4 font-medium text-sm transition-colors hover:text-blue-600">Detailed Calcs</button>
+                    <button @click="tab = 'detailing'" :class="tab === 'detailing' ? 'tab-active' : ''" class="py-4 font-medium text-sm transition-colors hover:text-blue-600">Detailing & Cost</button>
                 </nav>
                 <div class="text-right text-xs text-slate-500">
-                    <div class="font-bold text-slate-300">Prepared by: Mr. Chanachon Saikaew</div>
+                    <div class="font-bold text-slate-700">Prepared by: Mr. Chanachon Saikaew</div>
                     <div>KMUTNB | Civil Engineering Education</div>
                 </div>
             </header>
@@ -257,10 +266,10 @@
             <div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6" id="report-container">
 
                 <!-- Project Identity (Visible only in report) -->
-                <div class="hidden print:block text-center border-b-2 border-slate-800 pb-6 mb-8">
-                    <h1 class="text-4xl font-bold text-blue-400">StructureCAD AI</h1>
-                    <p class="text-lg">Reinforced Concrete Analysis & Design Suite (ACI 318-19)</p>
-                    <div class="mt-4 grid grid-cols-2 text-left text-sm max-w-2xl mx-auto">
+                <div class="hidden print:block text-center border-b-2 border-slate-900 pb-6 mb-8">
+                    <h1 class="text-4xl font-bold text-blue-700">StructureCAD AI</h1>
+                    <p class="text-lg text-slate-600">Reinforced Concrete Analysis & Design Suite (ACI 318-19)</p>
+                    <div class="mt-4 grid grid-cols-2 text-left text-sm max-w-2xl mx-auto text-slate-800">
                         <div><strong>Project:</strong> <span x-text="project.name"></span></div>
                         <div><strong>Date:</strong> <span x-text="new Date().toLocaleDateString()"></span></div>
                         <div><strong>Prepared by:</strong> Mr. Chanachon Saikaew</div>
@@ -272,101 +281,101 @@
                 <div x-show="tab === 'analysis' || printing" class="space-y-6">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="card p-4">
-                            <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                                <i data-lucide="bar-chart-2" class="w-5 h-5 text-blue-500"></i>
+                            <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-800">
+                                <i data-lucide="bar-chart-2" class="w-5 h-5 text-blue-600"></i>
                                 Bending Moment Diagram (kNm)
                             </h3>
-                            <div id="bmd-plot" class="w-full h-64 bg-slate-900/50 rounded"></div>
+                            <div id="bmd-plot" class="w-full h-64 bg-slate-50 rounded"></div>
                         </div>
                         <div class="card p-4">
-                            <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                                <i data-lucide="bar-chart-2" class="w-5 h-5 text-red-500"></i>
+                            <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-800">
+                                <i data-lucide="bar-chart-2" class="w-5 h-5 text-red-600"></i>
                                 Shear Force Diagram (kN)
                             </h3>
-                            <div id="sfd-plot" class="w-full h-64 bg-slate-900/50 rounded"></div>
+                            <div id="sfd-plot" class="w-full h-64 bg-slate-50 rounded"></div>
                         </div>
                     </div>
                     <div class="card p-4">
-                        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                            <i data-lucide="trending-down" class="w-5 h-5 text-green-500"></i>
+                        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-800">
+                            <i data-lucide="trending-down" class="w-5 h-5 text-green-600"></i>
                             Deflection Diagram (mm)
                         </h3>
-                        <div id="deflection-plot" class="w-full h-64 bg-slate-900/50 rounded"></div>
+                        <div id="deflection-plot" class="w-full h-64 bg-slate-50 rounded"></div>
                     </div>
                 </div>
 
                 <!-- Design Tab -->
                 <div x-show="tab === 'design' || printing" class="space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div class="card p-4 border-l-4 border-l-blue-500">
-                            <div class="text-xs text-slate-400 uppercase">Max Moment $M_u$</div>
-                            <div class="text-xl font-bold" x-text="results.maxMu.toFixed(2) + ' kNm'"></div>
+                        <div class="card p-4 border-l-4 border-l-blue-600">
+                            <div class="text-xs text-slate-500 uppercase font-bold">Max Moment $M_u$</div>
+                            <div class="text-xl font-bold text-slate-900" x-text="results.maxMu.toFixed(2) + ' kNm'"></div>
                         </div>
-                        <div class="card p-4 border-l-4 border-l-red-500">
-                            <div class="text-xs text-slate-400 uppercase">Max Shear $V_u$</div>
-                            <div class="text-xl font-bold" x-text="results.maxVu.toFixed(2) + ' kN'"></div>
+                        <div class="card p-4 border-l-4 border-l-red-600">
+                            <div class="text-xs text-slate-500 uppercase font-bold">Max Shear $V_u$</div>
+                            <div class="text-xl font-bold text-slate-900" x-text="results.maxVu.toFixed(2) + ' kN'"></div>
                         </div>
-                        <div class="card p-4 border-l-4 border-l-green-500">
-                            <div class="text-xs text-slate-400 uppercase">Flex Capacity $\phi M_n$</div>
-                            <div class="text-xl font-bold" :class="results.phiMn >= results.maxMu ? 'text-green-400' : 'text-red-400'" x-text="results.phiMn.toFixed(2) + ' kNm'"></div>
+                        <div class="card p-4 border-l-4 border-l-green-600">
+                            <div class="text-xs text-slate-500 uppercase font-bold">Flex Capacity $\phi M_n$</div>
+                            <div class="text-xl font-bold" :class="results.phiMn >= results.maxMu ? 'text-green-600' : 'text-red-600'" x-text="results.phiMn.toFixed(2) + ' kNm'"></div>
                         </div>
-                        <div class="card p-4 border-l-4 border-l-purple-500">
-                            <div class="text-xs text-slate-400 uppercase">Shear Capacity $\phi V_n$</div>
-                            <div class="text-xl font-bold" :class="results.phiVn >= results.maxVu ? 'text-green-400' : 'text-red-400'" x-text="results.phiVn.toFixed(2) + ' kN'"></div>
+                        <div class="card p-4 border-l-4 border-l-purple-600">
+                            <div class="text-xs text-slate-500 uppercase font-bold">Shear Capacity $\phi V_n$</div>
+                            <div class="text-xl font-bold" :class="results.phiVn >= results.maxVu ? 'text-green-600' : 'text-red-600'" x-text="results.phiVn.toFixed(2) + ' kN'"></div>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="card p-6">
-                            <h3 class="text-lg font-semibold mb-4 border-b border-slate-700 pb-2">Reinforcement Results</h3>
+                            <h3 class="text-lg font-semibold mb-4 border-b border-slate-100 pb-2 text-slate-800">Reinforcement Results</h3>
                             <div class="space-y-4">
                                 <div class="flex justify-between items-center">
-                                    <span class="text-slate-400">Main Reinforcement ($A_s$)</span>
-                                    <span class="font-bold text-lg" x-text="results.asRequired.toFixed(0) + ' mm²'"></span>
+                                    <span class="text-slate-600">Main Reinforcement ($A_s$)</span>
+                                    <span class="font-bold text-lg text-slate-900" x-text="results.asRequired.toFixed(0) + ' mm²'"></span>
                                 </div>
                                 <div class="flex justify-between items-center">
-                                    <span class="text-slate-400">Reinforcement Ratio ($\rho$)</span>
-                                    <span class="font-mono" x-text="results.rho.toFixed(5)"></span>
+                                    <span class="text-slate-600">Reinforcement Ratio ($\rho$)</span>
+                                    <span class="font-mono text-slate-700" x-text="results.rho.toFixed(5)"></span>
                                 </div>
                                 <div class="flex justify-between items-center">
-                                    <span class="text-slate-400">Bar Selection</span>
+                                    <span class="text-slate-600">Bar Selection</span>
                                     <div class="flex items-center gap-2">
-                                        <select class="bg-slate-800 border border-slate-700 rounded p-1 text-sm" x-model.number="design.barDia" @change="analyze()">
+                                        <select class="bg-white border border-slate-300 rounded p-1 text-sm text-slate-900" x-model.number="design.barDia" @change="analyze()">
                                             <option value="12">DB12</option>
                                             <option value="16">DB16</option>
                                             <option value="20">DB20</option>
                                             <option value="25">DB25</option>
                                             <option value="28">DB28</option>
                                         </select>
-                                        <span class="font-bold text-blue-400" x-text="results.barCount + ' bars'"></span>
+                                        <span class="font-bold text-blue-600" x-text="results.barCount + ' bars'"></span>
                                     </div>
                                 </div>
                                 <div class="flex justify-between items-center">
-                                    <span class="text-slate-400">Stirrup Spacing</span>
-                                    <span class="font-bold text-red-400" x-text="results.stirrupSpacing + ' mm'"></span>
+                                    <span class="text-slate-600">Stirrup Spacing</span>
+                                    <span class="font-bold text-red-600" x-text="results.stirrupSpacing + ' mm'"></span>
                                 </div>
                             </div>
                         </div>
                         <div class="card p-6 flex flex-col items-center justify-center">
-                            <h3 class="text-lg font-semibold mb-4 self-start">Section Visualization</h3>
-                            <canvas id="sectionCanvas" width="300" height="300" class="bg-slate-900 rounded border border-slate-700"></canvas>
+                            <h3 class="text-lg font-semibold mb-4 self-start text-slate-800">Section Visualization</h3>
+                            <canvas id="sectionCanvas" width="300" height="300" class="bg-slate-50 rounded border border-slate-200"></canvas>
                         </div>
                     </div>
                 </div>
 
                 <!-- Calculations Tab -->
-                <div x-show="tab === 'calculations' || printing" class="card p-8 space-y-8 prose prose-invert max-w-none" id="calc-content">
+                <div x-show="tab === 'calculations' || printing" class="card p-8 space-y-8 prose prose-slate max-w-none" id="calc-content">
                     <!-- Math content injected here -->
                 </div>
 
                 <!-- Detailing & Cost Tab -->
                 <div x-show="tab === 'detailing' || printing" class="space-y-6">
                      <div class="card p-6">
-                        <h3 class="text-lg font-semibold mb-4">Quantity Take-off & Cost Estimation</h3>
+                        <h3 class="text-lg font-semibold mb-4 text-slate-800">Quantity Take-off & Cost Estimation</h3>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left">
                                 <thead>
-                                    <tr class="border-b border-slate-700 text-slate-400 text-sm uppercase">
+                                    <tr class="border-b border-slate-200 text-slate-500 text-sm uppercase">
                                         <th class="py-3">Material Description</th>
                                         <th class="py-3 text-right">Unit</th>
                                         <th class="py-3 text-right">Quantity</th>
@@ -375,33 +384,33 @@
                                     </tr>
                                 </thead>
                                 <tbody class="text-sm">
-                                    <tr class="border-b border-slate-800 hover:bg-slate-800/30">
-                                        <td class="py-3 font-medium">Ready-mixed Concrete (f'c = <span x-text="materials.fc"></span> MPa)</td>
-                                        <td class="py-3 text-right text-slate-400">m³</td>
-                                        <td class="py-3 text-right" x-text="costs.concreteQty.toFixed(3)"></td>
-                                        <td class="py-3 text-right"><input type="number" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-right" x-model.number="costs.concretePrice"></td>
-                                        <td class="py-3 text-right font-bold" x-text="(costs.concreteQty * costs.concretePrice).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+                                    <tr class="border-b border-slate-100 hover:bg-slate-50">
+                                        <td class="py-3 font-medium text-slate-800">Ready-mixed Concrete (f'c = <span x-text="materials.fc"></span> MPa)</td>
+                                        <td class="py-3 text-right text-slate-500">m³</td>
+                                        <td class="py-3 text-right text-slate-700" x-text="costs.concreteQty.toFixed(3)"></td>
+                                        <td class="py-3 text-right"><input type="number" class="w-24 bg-white border border-slate-300 rounded px-2 py-1 text-right text-slate-900" x-model.number="costs.concretePrice"></td>
+                                        <td class="py-3 text-right font-bold text-slate-900" x-text="(costs.concreteQty * costs.concretePrice).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
                                     </tr>
-                                    <tr class="border-b border-slate-800 hover:bg-slate-800/30">
-                                        <td class="py-3 font-medium">Deformed Steel Bars (SD40 / fy = <span x-text="materials.fy"></span> MPa)</td>
-                                        <td class="py-3 text-right text-slate-400">kg</td>
-                                        <td class="py-3 text-right" x-text="costs.steelQty.toFixed(1)"></td>
-                                        <td class="py-3 text-right"><input type="number" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-right" x-model.number="costs.steelPrice"></td>
-                                        <td class="py-3 text-right font-bold" x-text="(costs.steelQty * costs.steelPrice).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+                                    <tr class="border-b border-slate-100 hover:bg-slate-50">
+                                        <td class="py-3 font-medium text-slate-800">Deformed Steel Bars (SD40 / fy = <span x-text="materials.fy"></span> MPa)</td>
+                                        <td class="py-3 text-right text-slate-500">kg</td>
+                                        <td class="py-3 text-right text-slate-700" x-text="costs.steelQty.toFixed(1)"></td>
+                                        <td class="py-3 text-right"><input type="number" class="w-24 bg-white border border-slate-300 rounded px-2 py-1 text-right text-slate-900" x-model.number="costs.steelPrice"></td>
+                                        <td class="py-3 text-right font-bold text-slate-900" x-text="(costs.steelQty * costs.steelPrice).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
                                     </tr>
-                                    <tr class="border-b border-slate-800 hover:bg-slate-800/30">
-                                        <td class="py-3 font-medium">Formwork & Scaffolding</td>
-                                        <td class="py-3 text-right text-slate-400">m²</td>
-                                        <td class="py-3 text-right" x-text="costs.formworkQty.toFixed(2)"></td>
-                                        <td class="py-3 text-right"><input type="number" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-right" x-model.number="costs.formworkPrice"></td>
-                                        <td class="py-3 text-right font-bold" x-text="(costs.formworkQty * costs.formworkPrice).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+                                    <tr class="border-b border-slate-100 hover:bg-slate-50">
+                                        <td class="py-3 font-medium text-slate-800">Formwork & Scaffolding</td>
+                                        <td class="py-3 text-right text-slate-500">m²</td>
+                                        <td class="py-3 text-right text-slate-700" x-text="costs.formworkQty.toFixed(2)"></td>
+                                        <td class="py-3 text-right"><input type="number" class="w-24 bg-white border border-slate-300 rounded px-2 py-1 text-right text-slate-900" x-model.number="costs.formworkPrice"></td>
+                                        <td class="py-3 text-right font-bold text-slate-900" x-text="(costs.formworkQty * costs.formworkPrice).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
                                     </tr>
-                                    <tr class="bg-slate-800/50">
-                                        <td class="py-4 font-bold text-base px-2">ESTIMATED TOTAL COST</td>
+                                    <tr class="bg-slate-50">
+                                        <td class="py-4 font-bold text-base px-2 text-slate-900">ESTIMATED TOTAL COST</td>
                                         <td></td>
                                         <td></td>
                                         <td></td>
-                                        <td class="py-4 text-right text-xl font-bold text-blue-400 px-2" x-text="'฿ ' + (costs.concreteQty * costs.concretePrice + costs.steelQty * costs.steelPrice + costs.formworkQty * costs.formworkPrice).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+                                        <td class="py-4 text-right text-xl font-bold text-blue-700 px-2" x-text="'฿ ' + (costs.concreteQty * costs.concretePrice + costs.steelQty * costs.steelPrice + costs.formworkQty * costs.formworkPrice).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -730,19 +739,20 @@
                     const commonLayout = {
                         paper_bgcolor: 'rgba(0,0,0,0)',
                         plot_bgcolor: 'rgba(0,0,0,0)',
-                        font: { color: '#94a3b8', family: 'Inter, sans-serif' },
+                        font: { color: '#1e293b', family: 'Inter, sans-serif' },
                         margin: { t: 30, b: 40, l: 60, r: 20 },
                         xaxis: {
-                            gridcolor: '#1e293b',
-                            zerolinecolor: '#334155',
+                            gridcolor: '#e2e8f0',
+                            zerolinecolor: '#cbd5e1',
                             title: { text: 'Span (m)', font: { size: 10 } }
                         },
                         yaxis: {
-                            gridcolor: '#1e293b',
-                            zerolinecolor: '#334155',
+                            gridcolor: '#e2e8f0',
+                            zerolinecolor: '#cbd5e1',
                             title: { font: { size: 10 } }
                         },
                         hovermode: 'x unified',
+                        template: 'plotly_white'
                     };
 
                     // BMD
@@ -753,8 +763,8 @@
                         y: this.analysisResults.moment,
                         fill: 'tozeroy',
                         name: 'Moment',
-                        line: { color: '#3b82f6', shape: 'spline' },
-                        fillcolor: 'rgba(59, 130, 246, 0.1)'
+                        line: { color: '#2563eb', shape: 'spline' },
+                        fillcolor: 'rgba(37, 99, 235, 0.1)'
                     }], bmdLayout, config);
 
                     // SFD
@@ -765,8 +775,8 @@
                         y: this.analysisResults.shear,
                         fill: 'tozeroy',
                         name: 'Shear',
-                        line: { color: '#ef4444', shape: 'hv' },
-                        fillcolor: 'rgba(239, 68, 68, 0.1)'
+                        line: { color: '#dc2626', shape: 'hv' },
+                        fillcolor: 'rgba(220, 38, 38, 0.1)'
                     }], sfdLayout, config);
 
                     // Deflection
@@ -776,7 +786,7 @@
                         x: this.analysisResults.x,
                         y: this.analysisResults.deflection,
                         name: 'Deflection',
-                        line: { color: '#22c55e', width: 3 }
+                        line: { color: '#16a34a', width: 3 }
                     }], defLayout, config);
                 },
 
@@ -794,9 +804,9 @@
                     const oy = (300 - bh) / 2;
 
                     // Concrete Section
-                    ctx.fillStyle = '#1e293b';
-                    ctx.shadowBlur = 10;
-                    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                    ctx.fillStyle = '#f1f5f9';
+                    ctx.shadowBlur = 4;
+                    ctx.shadowColor = 'rgba(0,0,0,0.1)';
                     ctx.fillRect(ox, oy, bw, bh);
                     ctx.shadowBlur = 0;
                     ctx.strokeStyle = '#475569';
@@ -804,8 +814,8 @@
                     ctx.strokeRect(ox, oy, bw, bh);
 
                     // Dimensions
-                    ctx.fillStyle = '#94a3b8';
-                    ctx.font = '10px Inter';
+                    ctx.fillStyle = '#64748b';
+                    ctx.font = 'bold 10px Inter';
                     ctx.textAlign = 'center';
                     ctx.fillText(`${this.geometry.b} mm`, 150, oy - 10);
                     ctx.save();
@@ -815,7 +825,7 @@
                     ctx.restore();
 
                     // Rebars (Main Bottom)
-                    ctx.fillStyle = '#3b82f6';
+                    ctx.fillStyle = '#2563eb';
                     const r = Math.max(3, (this.design.barDia * scale) / 2);
                     const cover = this.geometry.cover * scale;
                     const ds = this.design.stirrupDia * scale;
@@ -836,12 +846,12 @@
                             ctx.beginPath();
                             ctx.arc(x - r/3, barY - r/3, r/4, 0, Math.PI * 2);
                             ctx.fill();
-                            ctx.fillStyle = '#3b82f6';
+                            ctx.fillStyle = '#2563eb';
                         }
                     }
 
                     // Top Bars (Hangers/Compression)
-                    ctx.fillStyle = '#64748b';
+                    ctx.fillStyle = '#94a3b8';
                     const tr = r * 0.8;
                     ctx.beginPath();
                     ctx.arc(ox + cover + ds, oy + cover + ds, tr, 0, Math.PI * 2);
@@ -850,7 +860,7 @@
 
                     // Stirrup
                     if (this.mode === 'beam') {
-                        ctx.strokeStyle = '#ef4444';
+                        ctx.strokeStyle = '#dc2626';
                         ctx.lineWidth = Math.max(1, ds);
                         ctx.setLineDash([]);
                         ctx.beginPath();
@@ -870,12 +880,12 @@
                     const c = a / beta1;
 
                     calcContent.innerHTML = `
-                        <h2 class="text-3xl font-bold text-blue-500 mb-6">Detailed Engineering Report</h2>
+                        <h2 class="text-3xl font-bold text-blue-700 mb-6">Detailed Engineering Report</h2>
 
                         <div class="space-y-8">
                             <section>
-                                <h3 class="text-xl font-bold border-b border-slate-700 pb-2 mb-4">1. Structural Analysis Results</h3>
-                                <div class="grid grid-cols-2 gap-4">
+                                <h3 class="text-xl font-bold border-b border-slate-200 pb-2 mb-4 text-slate-800">1. Structural Analysis Results</h3>
+                                <div class="grid grid-cols-2 gap-4 text-slate-700">
                                     <p>Max Factored Moment ($M_u$): <strong>${this.results.maxMu.toFixed(2)} kNm</strong></p>
                                     <p>Max Factored Shear ($V_u$): <strong>${this.results.maxVu.toFixed(2)} kN</strong></p>
                                     <p>Span Length ($L$): ${this.geometry.span} m</p>
@@ -884,41 +894,45 @@
                             </section>
 
                             <section>
-                                <h3 class="text-xl font-bold border-b border-slate-700 pb-2 mb-4">2. Flexural Design (ACI 318-19)</h3>
-                                <p class="mb-2">Effective depth ($d$): $h - cover - d_{stirrup} - d_{bar}/2 = ${d.toFixed(1)} \\text{ mm}$</p>
-                                <p class="mb-2">Coefficient $\\beta_1$: $0.85 - 0.05(f'_c - 28)/7 = ${beta1.toFixed(3)}$</p>
+                                <h3 class="text-xl font-bold border-b border-slate-200 pb-2 mb-4 text-slate-800">2. Flexural Design (ACI 318-19)</h3>
+                                <div class="text-slate-700">
+                                    <p class="mb-2">Effective depth ($d$): $h - cover - d_{stirrup} - d_{bar}/2 = ${d.toFixed(1)} \\text{ mm}$</p>
+                                    <p class="mb-2">Coefficient $\\beta_1$: $0.85 - 0.05(f'_c - 28)/7 = ${beta1.toFixed(3)}$</p>
+                                </div>
 
-                                <div class="bg-slate-900/50 p-4 rounded-lg space-y-2 font-mono text-sm">
+                                <div class="bg-slate-50 p-6 rounded-lg border border-slate-200 space-y-2 font-mono text-sm text-slate-800">
                                     <div>$$ R_n = M_u / (\\phi b d^2) = ${(this.results.maxMu*1e6/(0.9*this.geometry.b*d*d)).toFixed(4)} \\text{ MPa} $$</div>
                                     <div>$$ \\rho_{req} = ${this.results.rho.toFixed(6)} $$</div>
                                     <div>$$ A_{s,req} = \\rho b d = ${this.results.asRequired.toFixed(1)} \\text{ mm}^2 $$</div>
                                 </div>
 
-                                <p class="mt-4">Provided Reinforcement: ${this.results.barCount} - DB${this.design.barDia} ($A_{s,prov} = ${As_prov.toFixed(1)} \\text{ mm}^2$)</p>
+                                <p class="mt-4 text-slate-800">Provided Reinforcement: <strong>${this.results.barCount} - DB${this.design.barDia}</strong> ($A_{s,prov} = ${As_prov.toFixed(1)} \\text{ mm}^2$)</p>
 
-                                <h4 class="font-bold mt-4">Strain Check & $\\phi$ Verification:</h4>
-                                <ul class="list-disc ml-6 space-y-1 text-sm">
+                                <h4 class="font-bold mt-4 text-slate-800">Strain Check & $\\phi$ Verification:</h4>
+                                <ul class="list-disc ml-6 space-y-1 text-sm text-slate-700">
                                     <li>Compression block depth ($a$): $a = \\frac{A_{s,prov} f_y}{0.85 f'_c b} = ${a.toFixed(2)} \\text{ mm}$</li>
                                     <li>Neutral axis depth ($c$): $c = a / \\beta_1 = ${c.toFixed(2)} \\text{ mm}$</li>
                                     <li>Net tensile strain ($\\epsilon_t$): $\\epsilon_t = 0.003 \\frac{d-c}{c} = ${this.results.et.toFixed(5)}$</li>
                                     <li>Strength reduction factor ($\\phi$): <strong>${this.results.phi.toFixed(3)}</strong></li>
                                 </ul>
 
-                                <div class="mt-4 p-3 bg-blue-900/20 border border-blue-800 rounded">
-                                    Design Moment Capacity: $\\phi M_n = \\phi A_{s,prov} f_y (d - a/2) = \mathbf{${this.results.phiMn.toFixed(2)} \text{ kNm}}$
+                                <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-900">
+                                    Design Moment Capacity: $\\phi M_n = \\phi A_{s,prov} f_y (d - a/2) = \\mathbf{${this.results.phiMn.toFixed(2)} \\text{ kNm}}$
                                 </div>
                             </section>
 
                             <section>
-                                <h3 class="text-xl font-bold border-b border-slate-700 pb-2 mb-4">3. Shear Design (ACI 318-19)</h3>
-                                <p>Concrete Capacity: $\\phi V_c = \\phi 0.17 \\sqrt{f'_c} b d = ${(0.75*0.17*Math.sqrt(this.materials.fc)*this.geometry.b*d/1000).toFixed(2)} \\text{ kN}$</p>
-                                ${this.mode === 'beam' ? `
-                                    <p>Required Shear Strength ($V_s$): ${(this.results.maxVu/0.75 - 0.17*Math.sqrt(this.materials.fc)*this.geometry.b*d/1000).toFixed(2)} \\text{ kN}</p>
-                                    <p>Stirrup Selection: 2 - RB${this.design.stirrupDia} @ ${this.results.stirrupSpacing} mm</p>
-                                ` : `<p>Slab Shear: OK (No stirrups required for one-way slab shear if $V_u < \\phi V_c$)</p>`}
+                                <h3 class="text-xl font-bold border-b border-slate-200 pb-2 mb-4 text-slate-800">3. Shear Design (ACI 318-19)</h3>
+                                <div class="text-slate-700">
+                                    <p>Concrete Capacity: $\\phi V_c = \\phi 0.17 \\sqrt{f'_c} b d = ${(0.75*0.17*Math.sqrt(this.materials.fc)*this.geometry.b*d/1000).toFixed(2)} \\text{ kN}$</p>
+                                    ${this.mode === 'beam' ? `
+                                        <p>Required Shear Strength ($V_s$): ${(this.results.maxVu/0.75 - 0.17*Math.sqrt(this.materials.fc)*this.geometry.b*d/1000).toFixed(2)} \\text{ kN}</p>
+                                        <p>Stirrup Selection: 2 - RB${this.design.stirrupDia} @ ${this.results.stirrupSpacing} mm</p>
+                                    ` : `<p>Slab Shear: OK (No stirrups required for one-way slab shear if $V_u < \\phi V_c$)</p>`}
+                                </div>
 
-                                <div class="mt-4 p-3 bg-red-900/20 border border-red-800 rounded">
-                                    Design Shear Capacity: $\\phi V_n = \mathbf{${this.results.phiVn.toFixed(2)} \text{ kN}}$
+                                <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-900">
+                                    Design Shear Capacity: $\\phi V_n = \\mathbf{${this.results.phiVn.toFixed(2)} \\text{ kN}}$
                                 </div>
                             </section>
                         </div>
@@ -951,7 +965,7 @@
                         html2canvas: {
                             scale: 2,
                             useCORS: true,
-                            backgroundColor: '#0f172a',
+                            backgroundColor: '#ffffff',
                             logging: false
                         },
                         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
