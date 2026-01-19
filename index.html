@@ -256,9 +256,10 @@
                     <button @click="tab = 'calculations'" :class="tab === 'calculations' ? 'tab-active' : ''" class="py-4 font-medium text-sm transition-colors hover:text-blue-600">Detailed Calcs</button>
                     <button @click="tab = 'detailing'" :class="tab === 'detailing' ? 'tab-active' : ''" class="py-4 font-medium text-sm transition-colors hover:text-blue-600">Detailing & Cost</button>
                 </nav>
-                <div class="text-right text-xs text-slate-500">
-                    <div class="font-bold text-slate-700">Prepared by: Mr. Chanachon Saikaew</div>
-                    <div>KMUTNB | Civil Engineering Education</div>
+                <div class="text-right text-[10px] md:text-xs text-slate-500">
+                    <div class="font-bold text-slate-700 uppercase">Prepared by: Mr. Chanachon Saikaew</div>
+                    <div class="font-medium">Faculty of Technical Education | KMUTNB</div>
+                    <div>Civil Engineering Education</div>
                 </div>
             </header>
 
@@ -279,18 +280,25 @@
 
                 <!-- Analysis Tab -->
                 <div x-show="tab === 'analysis' || printing" class="space-y-6">
+                    <div class="card p-4">
+                        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-800">
+                            <i data-lucide="info" class="w-5 h-5 text-indigo-600"></i>
+                            Structural Model (Loading Diagram)
+                        </h3>
+                        <div id="loading-plot" class="w-full h-48 bg-slate-50 rounded"></div>
+                    </div>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="card p-4">
                             <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-800">
                                 <i data-lucide="bar-chart-2" class="w-5 h-5 text-blue-600"></i>
-                                Bending Moment Diagram (kNm)
+                                Bending Moment Diagram <span x-text="mode === 'slab' ? '(kNm/m)' : '(kNm)'"></span>
                             </h3>
                             <div id="bmd-plot" class="w-full h-64 bg-slate-50 rounded"></div>
                         </div>
                         <div class="card p-4">
                             <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-800">
                                 <i data-lucide="bar-chart-2" class="w-5 h-5 text-red-600"></i>
-                                Shear Force Diagram (kN)
+                                Shear Force Diagram <span x-text="mode === 'slab' ? '(kN/m)' : '(kN)'"></span>
                             </h3>
                             <div id="sfd-plot" class="w-full h-64 bg-slate-50 rounded"></div>
                         </div>
@@ -476,7 +484,7 @@
                 init() {
                     lucide.createIcons();
                     this.analyze();
-                    this.$watch('tab', () => {
+                    this.$watch('tab', (val) => {
                         this.$nextTick(() => {
                             renderMathInElement(document.body, {
                                 delimiters: [
@@ -484,8 +492,15 @@
                                     {left: '$', right: '$', display: false}
                                 ]
                             });
+                            // Force re-render of graphs and canvas when tab changes
+                            this.renderDiagrams();
+                            this.drawCrossSection();
+                            if (val === 'calculations') {
+                                this.drawCrossSection('calcSectionCanvas');
+                            }
                         });
                     });
+                    window.addEventListener('resize', () => this.renderDiagrams());
                 },
 
                 addLoad() {
@@ -734,8 +749,113 @@
                     this.costs.steelQty = mainSteelWeight + stirrupWeight;
                 },
 
+                renderLoadingDiagram(config) {
+                    const L = this.geometry.span;
+                    const traces = [];
+                    const annotations = [];
+
+                    // Beam line
+                    traces.push({
+                        x: [0, L], y: [0, 0],
+                        mode: 'lines',
+                        line: { color: '#334155', width: 6 },
+                        showlegend: false,
+                        hoverinfo: 'none'
+                    });
+
+                    // Supports
+                    const addSupport = (x, type) => {
+                        if (type === 'fixed') {
+                            traces.push({
+                                x: [x, x], y: [-0.2, 0.2],
+                                mode: 'lines', line: { color: '#000', width: 4 },
+                                showlegend: false, hoverinfo: 'none'
+                            });
+                            for(let i=-0.2; i<=0.2; i+=0.05) {
+                                traces.push({
+                                    x: [x, x - (x===0 ? 0.1 : -0.1)], y: [i, i+0.05],
+                                    mode: 'lines', line: { color: '#64748b', width: 1 },
+                                    showlegend: false, hoverinfo: 'none'
+                                });
+                            }
+                        } else if (type === 'pinned') {
+                            traces.push({
+                                x: [x-0.1, x, x+0.1, x-0.1], y: [-0.2, 0, -0.2, -0.2],
+                                mode: 'lines', fill: 'toself', fillcolor: '#64748b',
+                                line: { color: '#334155', width: 1 },
+                                showlegend: false, hoverinfo: 'none'
+                            });
+                        } else if (type === 'roller') {
+                            traces.push({
+                                x: [x-0.1, x, x+0.1, x-0.1], y: [-0.15, 0, -0.15, -0.15],
+                                mode: 'lines', line: { color: '#334155', width: 1 },
+                                showlegend: false, hoverinfo: 'none'
+                            });
+                            traces.push({
+                                x: [x-0.1, x+0.1], y: [-0.2, -0.2],
+                                mode: 'lines', line: { color: '#334155', width: 2 },
+                                showlegend: false, hoverinfo: 'none'
+                            });
+                        }
+                    };
+                    addSupport(0, this.supports.left);
+                    addSupport(L, this.supports.right);
+
+                    // Loads
+                    this.loads.forEach(l => {
+                        const factor = (l.category === 'D') ? 1.2 : 1.6;
+                        const val = l.value * factor;
+                        if (l.type === 'point') {
+                            annotations.push({
+                                x: l.pos, y: 0,
+                                ax: 0, ay: -40,
+                                xref: 'x', yref: 'y',
+                                axref: 'pixel', ayref: 'pixel',
+                                showarrow: true,
+                                arrowhead: 2, arrowsize: 1, arrowwidth: 2,
+                                arrowcolor: l.category === 'D' ? '#475569' : '#2563eb',
+                                text: `${l.value} kN (${l.category})`,
+                                font: { size: 10, color: '#1e293b' },
+                                yanchor: 'bottom'
+                            });
+                        } else {
+                            // UDL
+                            traces.push({
+                                x: [l.pos, l.pos + l.length, l.pos + l.length, l.pos, l.pos],
+                                y: [0.1, 0.1, 0.5, 0.5, 0.1],
+                                fill: 'toself',
+                                fillcolor: l.category === 'D' ? 'rgba(71, 85, 105, 0.1)' : 'rgba(37, 99, 235, 0.1)',
+                                line: { color: l.category === 'D' ? '#475569' : '#2563eb', width: 1, dash: 'dot' },
+                                showlegend: false,
+                                hoverinfo: 'none'
+                            });
+                            annotations.push({
+                                x: l.pos + l.length/2, y: 0.5,
+                                text: `${l.value} kN/m (${l.category})`,
+                                showarrow: false,
+                                font: { size: 10, color: '#1e293b' },
+                                yanchor: 'bottom'
+                            });
+                        }
+                    });
+
+                    const layout = {
+                        height: 180,
+                        margin: { t: 40, b: 20, l: 40, r: 40 },
+                        xaxis: { range: [-0.5, L + 0.5], showgrid: false, zeroline: false },
+                        yaxis: { range: [-0.5, 1.5], showgrid: false, zeroline: false, showticklabels: false },
+                        annotations: annotations,
+                        paper_bgcolor: 'rgba(0,0,0,0)',
+                        plot_bgcolor: 'rgba(0,0,0,0)',
+                        template: 'plotly_white'
+                    };
+
+                    Plotly.newPlot('loading-plot', traces, layout, config);
+                },
+
                 renderDiagrams() {
                     const config = { responsive: true, displayModeBar: false };
+                    this.renderLoadingDiagram(config);
                     const commonLayout = {
                         paper_bgcolor: 'rgba(0,0,0,0)',
                         plot_bgcolor: 'rgba(0,0,0,0)',
@@ -790,16 +910,28 @@
                     }], defLayout, config);
                 },
 
-                drawCrossSection() {
-                    const canvas = document.getElementById('sectionCanvas');
+                drawCrossSection(canvasId = 'sectionCanvas') {
+                    const canvas = document.getElementById(canvasId);
+                    if (!canvas) return;
                     const ctx = canvas.getContext('2d');
                     ctx.clearRect(0, 0, 300, 300);
 
                     // Center and scale
-                    const maxDim = Math.max(this.geometry.b, this.geometry.h);
-                    const scale = 200 / maxDim;
-                    const bw = this.geometry.b * scale;
-                    const bh = this.geometry.h * scale;
+                    let bw_real = this.geometry.b;
+                    let bh_real = this.geometry.h;
+
+                    // For slab, we might want to show a 1m width but maybe zoomed in if it's too thin
+                    const aspectRatio = bw_real / bh_real;
+                    let scale;
+                    if (aspectRatio > 3) {
+                        // Very wide (slab)
+                        scale = 260 / bw_real;
+                    } else {
+                        scale = 220 / Math.max(bw_real, bh_real);
+                    }
+
+                    const bw = bw_real * scale;
+                    const bh = bh_real * scale;
                     const ox = (300 - bw) / 2;
                     const oy = (300 - bh) / 2;
 
@@ -809,8 +941,8 @@
                     ctx.shadowColor = 'rgba(0,0,0,0.1)';
                     ctx.fillRect(ox, oy, bw, bh);
                     ctx.shadowBlur = 0;
-                    ctx.strokeStyle = '#475569';
-                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = '#334155';
+                    ctx.lineWidth = 2;
                     ctx.strokeRect(ox, oy, bw, bh);
 
                     // Dimensions
@@ -870,6 +1002,9 @@
                 },
 
                 generateCalculationReport() {
+                    this.$nextTick(() => {
+                        this.drawCrossSection('calcSectionCanvas');
+                    });
                     const calcContent = document.getElementById('calc-content');
                     if (!calcContent) return;
 
@@ -883,6 +1018,22 @@
                         <h2 class="text-3xl font-bold text-blue-700 mb-6">Detailed Engineering Report</h2>
 
                         <div class="space-y-8">
+                            <section class="flex flex-col md:flex-row gap-6 items-center border-b border-slate-200 pb-6">
+                                <div class="flex-1">
+                                    <h3 class="text-xl font-bold mb-2 text-slate-800">Project Identification</h3>
+                                    <div class="grid grid-cols-1 gap-1 text-sm text-slate-600">
+                                        <p><strong>Project Name:</strong> ${this.project.name}</p>
+                                        <p><strong>Mode:</strong> ${this.mode.toUpperCase()}</p>
+                                        <p><strong>Standard:</strong> ACI 318-19</p>
+                                        <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+                                    </div>
+                                </div>
+                                <div class="w-64 h-64 bg-white flex flex-col items-center justify-center border border-slate-100 rounded shadow-sm">
+                                    <span class="text-[10px] text-slate-400 mb-1 font-bold uppercase">Section Detail</span>
+                                    <canvas id="calcSectionCanvas" width="300" height="300" style="width: 240px; height: 240px;"></canvas>
+                                </div>
+                            </section>
+
                             <section>
                                 <h3 class="text-xl font-bold border-b border-slate-200 pb-2 mb-4 text-slate-800">1. Structural Analysis Results</h3>
                                 <div class="grid grid-cols-2 gap-4 text-slate-700">
