@@ -7,8 +7,11 @@ StructureCAD AI is a professional, high-fidelity structural engineering applicat
 - **💬 AI Structural Assistant**: A specialized chatbot powered by OpenAI, expert in structural analysis and design codes (ACI, AISC, EIT).
 - **📊 2D Beam Analysis**: Analyze beams with custom spans, multiple support types (Pin, Roller, Fixed), and point/UDL loads. Generates Shear Force (SFD) and Bending Moment (BMD) diagrams.
 - **📐 Truss Analysis**: Interactive solver for 2D trusses using the matrix method to calculate axial member forces.
-- **🧱 RC Design**: Reinforced concrete beam reinforcement calculator based on factored moments.
-- **📚 Steel Sections**: Integrated database for Thai standard H-Beams (TIS).
+- **🧱 RC Design Suite**:
+  - **Beam Design**: Calculate required reinforcement area.
+  - **Column Design**: Axial capacity check for tied columns.
+  - **One-way Slab**: Thickness and reinforcement spacing calculator.
+- **📚 Steel Sections Database**: Searchable database for Thai Industrial Standards (TIS) sections (H-Beam, I-Beam, Channel, CHS).
 
 ## 🛠️ Installation
 

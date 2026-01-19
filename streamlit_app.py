@@ -52,9 +52,19 @@ initialize_chat()
 with st.sidebar:
     st.header("Settings")
     openai_api_key = st.text_input("OpenAI API Key", type="password")
+
+    st.divider()
+    st.header("Project Configuration")
+    unit_system = st.selectbox("Unit System", ["Metric (kN, m, cm)", "Imperial (kip, ft, in)"])
+
     st.divider()
     st.markdown("### About StructureCAD")
     st.info("StructureCAD is a detailed tool for structural analysis and design, powered by AI.")
+
+    if st.button("Reset All Data"):
+        for key in st.session_state.keys():
+            del st.session_state[key]
+        st.rerun()
 
 # Tabs for different modules
 tab_chat, tab_beam, tab_truss, tab_concrete, tab_sections = st.tabs([
@@ -87,7 +97,18 @@ with tab_chat:
             try:
                 # Specialized System Prompt
                 messages = [
-                    {"role": "system", "content": "You are StructureCAD AI, a professional senior structural engineer expert in analysis, design (ACI, AISC, EIT), and construction. Provide detailed, accurate, and professional engineering advice."}
+                    {"role": "system", "content": """You are StructureCAD AI, a highly experienced senior structural engineer.
+                    Your expertise covers:
+                    - Finite Element Analysis (FEA) and classical structural mechanics.
+                    - Design of Reinforced Concrete (RC) structures using ACI 318 and Thai EIT standards.
+                    - Steel structure design according to AISC 360 (ASD/LRFD).
+                    - Foundation and geotechnical engineering basics.
+
+                    When answering:
+                    1. Be precise, professional, and use engineering terminology correctly.
+                    2. If the user asks for calculations, explain the formulas used (e.g., rho = As/bd).
+                    3. Encourage the use of the 'Beam Analysis' and 'RC Design' tabs available in this application for specific numerical solvers.
+                    4. Always prioritize structural safety and recommend consulting a licensed professional for real-world projects."""}
                 ] + [
                     {"role": m["role"], "content": m["content"]}
                     for m in st.session_state.messages
@@ -107,18 +128,21 @@ with tab_chat:
 
 # --- TAB 2: BEAM ANALYSIS ---
 with tab_beam:
-    st.subheader("2D Beam Structural Analysis")
+    unit_l = "m" if "Metric" in unit_system else "ft"
+    unit_f = "kN" if "Metric" in unit_system else "kip"
+
+    st.subheader(f"2D Beam Structural Analysis ({unit_f}, {unit_l})")
 
     col1, col2 = st.columns([1, 2])
 
     with col1:
         st.markdown("### Beam Geometry")
-        span = st.number_input("Span Length (m)", min_value=1.0, value=5.0, step=0.5)
+        span = st.number_input(f"Span Length ({unit_l})", min_value=1.0, value=5.0, step=0.5)
 
         st.divider()
         st.markdown("### Supports")
         support_type = st.selectbox("Support Type", ["Pin", "Roller", "Fixed"])
-        support_pos = st.number_input("Support Position (m)", min_value=0.0, max_value=span, value=0.0, step=0.1)
+        support_pos = st.number_input(f"Support Position ({unit_l})", min_value=0.0, max_value=span, value=0.0, step=0.1)
 
         if st.button("Add Support"):
             if "supports" not in st.session_state: st.session_state.supports = []
@@ -127,25 +151,31 @@ with tab_beam:
         if "supports" in st.session_state and st.session_state.supports:
             st.write("Current Supports:")
             for i, s in enumerate(st.session_state.supports):
-                st.write(f"{i+1}. {s['type']} at {s['pos']}m")
+                st.write(f"{i+1}. {s['type']} at {s['pos']}{unit_l}")
             if st.button("Clear Supports"):
                 st.session_state.supports = []
                 st.rerun()
 
         st.divider()
         st.markdown("### Loads")
-        load_type = st.selectbox("Load Type", ["Point Load (kN)", "UDL (kN/m)"])
+        load_type = st.selectbox("Load Type", [f"Point Load ({unit_f})", f"UDL ({unit_f}/{unit_l})"])
         load_val = st.number_input("Load Magnitude (Negative for Downward)", value=-10.0, step=1.0)
-        load_pos = st.number_input("Position (m)", min_value=0.0, max_value=span, value=span/2, step=0.1)
+        l_pos_start = st.number_input(f"Position Start ({unit_l})", min_value=0.0, max_value=span, value=span/2, step=0.1)
+        l_pos_end = 0.0
+        if "UDL" in load_type:
+            l_pos_end = st.number_input(f"Position End ({unit_l})", min_value=l_pos_start, max_value=span, value=span, step=0.1)
 
         if st.button("Add Load"):
             if "loads" not in st.session_state: st.session_state.loads = []
-            st.session_state.loads.append({"type": load_type, "val": load_val, "pos": load_pos})
+            st.session_state.loads.append({"type": load_type, "val": load_val, "pos": l_pos_start, "end": l_pos_end})
 
         if "loads" in st.session_state and st.session_state.loads:
             st.write("Current Loads:")
             for i, l in enumerate(st.session_state.loads):
-                st.write(f"{i+1}. {l['type']}: {l['val']} at {l['pos']}m")
+                if "UDL" in l['type']:
+                    st.write(f"{i+1}. {l['type']}: {l['val']} from {l['pos']} to {l['end']}{unit_l}")
+                else:
+                    st.write(f"{i+1}. {l['type']}: {l['val']} at {l['pos']}{unit_l}")
             if st.button("Clear Loads"):
                 st.session_state.loads = []
                 st.rerun()
@@ -168,21 +198,21 @@ with tab_beam:
                 # Add supports
                 for s in st.session_state.supports:
                     node_id = ss.find_node_id([s['pos'], 0])
-                    if s['type'] == "Pin": ss.add_support_pin(node_id)
+                    if s['type'] == "Pin": ss.add_support_hinged(node_id)
                     elif s['type'] == "Roller": ss.add_support_roll(node_id)
                     elif s['type'] == "Fixed": ss.add_support_fixed(node_id)
 
                 # Add loads
                 for l in st.session_state.loads:
-                    if l['type'] == "Point Load (kN)":
+                    if "Point Load" in l['type']:
                         node_id = ss.find_node_id([l['pos'], 0])
                         ss.point_load(node_id, Fy=l['val'])
                     else: # UDL
                         # Find elements that fall under the UDL
-                        # For simplicity, apply to element starting at position
                         for el_id in ss.element_map:
                             el = ss.element_map[el_id]
-                            if el.node_1.x >= l['pos']:
+                            # If element is within [start, end]
+                            if el.node_1.x >= l['pos'] and el.node_2.x <= l['end']:
                                 ss.q_load(q=l['val'], element_id=el_id)
 
                 ss.solve()
@@ -198,11 +228,12 @@ with tab_beam:
 
                 for el_id in ss.element_map:
                     el = ss.element_map[el_id]
+                    res = ss.get_element_results(el_id)
                     x_coords.extend([el.node_1.x, el.node_2.x])
-                    # anastruct shear and moment are per element
-                    # We'll simplify for visualization
-                    shear_vals.extend([ss.get_element_results(el_id)['shear_1'], ss.get_element_results(el_id)['shear_2']])
-                    moment_vals.extend([ss.get_element_results(el_id)['moment_1'], ss.get_element_results(el_id)['moment_2']])
+                    # Use Qmin/Qmax and Mmin/Mmax for simple visualization
+                    # For more complex beams, anastruct discretizes and we'd need more points
+                    shear_vals.extend([res['Qmin'], res['Qmax']])
+                    moment_vals.extend([res['Mmin'], res['Mmax']])
 
                 fig_shear.add_trace(go.Scatter(x=x_coords, y=shear_vals, fill='tozeroy', name="Shear (kN)"))
                 fig_shear.update_layout(title="Shear Force Diagram (SFD)", xaxis_title="Position (m)", yaxis_title="Shear (kN)")
@@ -214,6 +245,21 @@ with tab_beam:
                 st.plotly_chart(fig_moment, use_container_width=True)
 
                 st.success("Analysis Complete!")
+
+                # Export Button
+                export_data = []
+                for node_id in ss.node_map:
+                    res = ss.get_node_results(node_id)
+                    export_data.append({
+                        "Node": node_id,
+                        "X": ss.node_map[node_id].x,
+                        "Fx": res['Fx'],
+                        "Fy": res['Fy'],
+                        "M": res['M']
+                    })
+                df_export = pd.DataFrame(export_data)
+                csv = df_export.to_csv(index=False).encode('utf-8')
+                st.download_button("📥 Download Analysis Report (CSV)", csv, "beam_analysis.csv", "text/csv")
 
                 # Reactions
                 st.markdown("#### Support Reactions")
@@ -288,7 +334,7 @@ with tab_truss:
                 # Add support and load to the specified node
                 # Note: node_id in anastruct starts at 1
                 node_id = t_node_id + 1
-                if t_support == "Pin": ts.add_support_pin(node_id)
+                if t_support == "Pin": ts.add_support_hinged(node_id)
                 elif t_support == "Roller": ts.add_support_roll(node_id)
 
                 if t_load_x != 0 or t_load_y != 0:
@@ -297,9 +343,9 @@ with tab_truss:
                 # To be stable, need more supports. This is just a demo.
                 # In a real app, we'd manage supports per node.
 
-                # Let's add a fixed support at node 0 for stability in this demo if not specified
+                # Let's add a hinged support at node 0 for stability in this demo if not specified
                 if not any(t_support == "Pin" for _ in range(1)): # simplified
-                    ts.add_support_pin(1)
+                    ts.add_support_hinged(1)
 
                 ts.solve()
 
@@ -330,55 +376,122 @@ with tab_truss:
 
 # --- TAB 4: RC DESIGN ---
 with tab_concrete:
-    st.subheader("Reinforced Concrete Beam Design")
-    st.markdown("Calculate required reinforcement for a rectangular beam (Simplified ACI/EIT).")
+    st.subheader("Reinforced Concrete Design")
+    rc_sub_tab = st.radio("Component Type", ["Beam Design", "Column Design (Axial)", "One-way Slab"], horizontal=True)
 
-    rc_col1, rc_col2 = st.columns(2)
-    with rc_col1:
-        fc = st.number_input("f'c (Concrete Strength - ksc)", value=240.0)
-        fy = st.number_input("fy (Steel Strength - ksc)", value=4000.0)
-        b = st.number_input("b (Width - cm)", value=20.0)
-        d = st.number_input("d (Effective Depth - cm)", value=35.0)
-        mu = st.number_input("Mu (Factored Moment - kg-m)", value=5000.0)
+    if rc_sub_tab == "Beam Design":
+        st.markdown("### Rectangular Beam Design (ACI/EIT)")
+        rc_col1, rc_col2 = st.columns(2)
+        with rc_col1:
+            fc = st.number_input("f'c (Concrete Strength - ksc)", value=240.0, key="bfc")
+            fy = st.number_input("fy (Steel Strength - ksc)", value=4000.0, key="bfy")
+            b = st.number_input("b (Width - cm)", value=20.0)
+            d = st.number_input("d (Effective Depth - cm)", value=35.0)
+            mu = st.number_input("Mu (Factored Moment - kg-m)", value=5000.0)
 
-    with rc_col2:
-        if st.button("Calculate Reinforcement"):
-            # Simplified calculation
-            # Rn = Mu / (phi * b * d^2)
-            # rho = (0.85 * fc / fy) * (1 - sqrt(1 - 2*Rn / (0.85 * fc)))
-            phi = 0.9
-            mu_cm = mu * 100 # to kg-cm
-            rn = mu_cm / (phi * b * d**2)
+        with rc_col2:
+            if st.button("Calculate Reinforcement"):
+                phi = 0.9
+                mu_cm = mu * 100
+                rn = mu_cm / (phi * b * d**2)
+                if rn < (0.85 * fc / 2):
+                    rho = (0.85 * fc / fy) * (1 - np.sqrt(1 - (2 * rn) / (0.85 * fc)))
+                    as_req = rho * b * d
+                    st.metric("Required As", f"{as_req:.2f} cm²")
+                    num_db12 = int(np.ceil(as_req / 1.13))
+                    num_db16 = int(np.ceil(as_req / 2.01))
+                    num_db20 = int(np.ceil(as_req / 3.14))
+                    st.write("Suggested Reinforcement:")
+                    st.write(f"- {num_db12} x DB12 ({num_db12*1.13:.2f} cm²)")
+                    st.write(f"- {num_db16} x DB16 ({num_db16*2.01:.2f} cm²)")
+                    st.write(f"- {num_db20} x DB20 ({num_db20*3.14:.2f} cm²)")
+                else:
+                    st.error("Section failure: Moment is too high for concrete section.")
 
-            if rn < (0.85 * fc / 2):
+    elif rc_sub_tab == "Column Design (Axial)":
+        st.markdown("### Short Column Axial Capacity (Simplified)")
+        cc1, cc2 = st.columns(2)
+        with cc1:
+            fc = st.number_input("f'c (Concrete Strength - ksc)", value=240.0, key="cfc")
+            fy = st.number_input("fy (Steel Strength - ksc)", value=4000.0, key="cfy")
+            ag = st.number_input("Gross Area (Ag - cm²)", value=400.0) # 20x20
+            ast_percent = st.slider("Steel Percentage (1-6%)", 1.0, 6.0, 1.0)
+
+        with cc2:
+            if st.button("Calculate Capacity"):
+                ast = (ast_percent/100) * ag
+                # Pn = 0.80 * phi * [0.85 * fc * (Ag - Ast) + fy * Ast] (Tied)
+                phi = 0.65
+                pn = 0.8 * phi * (0.85 * fc * (ag - ast) + fy * ast)
+                st.metric("Factored Capacity (øPn)", f"{pn/1000:.2f} Tons")
+                st.write(f"Required Steel Area (Ast): {ast:.2f} cm²")
+
+    elif rc_sub_tab == "One-way Slab":
+        st.markdown("### One-way Slab Design")
+        sc1, sc2 = st.columns(2)
+        with sc1:
+            t = st.number_input("Thickness (cm)", value=10.0)
+            mu_slab = st.number_input("Mu (kg-m/m)", value=1200.0)
+        with sc2:
+            if st.button("Check Reinforcement"):
+                d = t - 2.5 # 2.5cm cover
+                # Using basic b=100cm
+                phi = 0.9
+                fc = 240; fy = 4000
+                rn = (mu_slab * 100) / (phi * 100 * d**2)
                 rho = (0.85 * fc / fy) * (1 - np.sqrt(1 - (2 * rn) / (0.85 * fc)))
-                as_req = rho * b * d
-                st.metric("Required As", f"{as_req:.2f} cm²")
-                st.write(f"Steel Ratio (ρ): {rho:.4f}")
-
-                # Recommendation
-                num_bars = int(np.ceil(as_req / 2.01)) # Assuming DB16 (2.01 cm2)
-                st.info(f"Recommendation: Use at least {num_bars} x DB16 bars.")
-            else:
-                st.error("Section too small or Moment too high! Increase b or d.")
+                as_req = rho * 100 * d
+                st.write(f"Required As: {as_req:.2f} cm²/m")
+                spacing = (1.13 * 100) / as_req # DB12
+                st.info(f"Spacing for DB12: @{min(spacing, 3*t, 45):.1f} cm")
 
 # --- TAB 5: STEEL SECTIONS ---
 with tab_sections:
-    st.subheader("Standard Steel Sections (Thai/International)")
+    st.subheader("Standard Steel Sections (TIS/JIS)")
 
-    st.markdown("### Thai H-Beam Standard (TIS)")
-    # Mock database for Thai H-Beams
-    data = {
-        "Section": ["H 100x100x6x8", "H 150x150x7x10", "H 200x200x8x12", "H 250x250x9x14", "H 300x300x10x15"],
-        "Weight (kg/m)": [17.2, 31.5, 49.9, 72.4, 94.0],
-        "Area (cm2)": [21.9, 40.1, 63.5, 92.2, 119.8],
-        "Ix (cm4)": [383, 1640, 4720, 10800, 20400],
-        "Iy (cm4)": [134, 563, 1600, 3650, 6750]
-    }
+    sec_type = st.selectbox("Section Type", ["H-Beam / Wide Flange", "I-Beam", "Channel", "Circular Hollow Section"])
+
+    # Expanded database
+    if sec_type == "H-Beam / Wide Flange":
+        data = {
+            "Section": ["H 100x100x6x8", "H 150x150x7x10", "H 200x200x8x12", "H 250x250x9x14", "H 300x300x10x15", "H 350x350x12x19", "H 400x400x13x21"],
+            "Weight (kg/m)": [17.2, 31.5, 49.9, 72.4, 94.0, 137, 172],
+            "Area (cm²)": [21.9, 40.1, 63.5, 92.2, 119.8, 173.9, 218.7],
+            "Ix (cm⁴)": [383, 1640, 4720, 10800, 20400, 40300, 66600],
+            "Iy (cm⁴)": [134, 563, 1600, 3650, 6750, 13600, 22400]
+        }
+    elif sec_type == "I-Beam":
+        data = {
+            "Section": ["I 150x75x5.5x9.5", "I 200x100x7x10", "I 250x125x7.5x12.5", "I 300x150x8x13"],
+            "Weight (kg/m)": [17.1, 26.0, 38.3, 48.3],
+            "Area (cm²)": [21.8, 33.1, 48.8, 61.5],
+            "Ix (cm⁴)": [819, 2170, 5180, 9480],
+            "Iy (cm⁴)": [57.5, 138, 337, 588]
+        }
+    elif sec_type == "Channel":
+        data = {
+            "Section": ["C 75x40x5x7", "C 100x50x5x7.5", "C 150x75x6.5x10", "C 200x80x7.5x11"],
+            "Weight (kg/m)": [6.9, 9.4, 18.6, 24.6],
+            "Area (cm²)": [8.8, 11.9, 23.7, 31.3],
+            "Ix (cm⁴)": [75.3, 188, 861, 1910],
+            "Iy (cm⁴)": [12.2, 26.0, 117, 168]
+        }
+    else: # CHS
+        data = {
+            "Section": ["CHS 60.5x3.2", "CHS 89.1x3.2", "CHS 114.3x4.5", "CHS 165.2x5.0"],
+            "Weight (kg/m)": [4.52, 6.78, 12.2, 19.8],
+            "Area (cm²)": [5.76, 8.64, 15.5, 25.2],
+            "Ix (cm⁴)": [24.5, 78.4, 236, 804],
+            "Iy (cm⁴)": [24.5, 78.4, 236, 804]
+        }
+
     df_sections = pd.DataFrame(data)
-    st.dataframe(df_sections, use_container_width=True)
+    search_query = st.text_input("Search Section (e.g. 200)", "")
+    if search_query:
+        df_sections = df_sections[df_sections['Section'].str.contains(search_query)]
 
-    st.info("You can use these properties for advanced calculations in the AI Assistant.")
+    st.dataframe(df_sections, use_container_width=True)
+    st.info("Section properties based on Thai Industrial Standards (TIS).")
 
 # Footer
 st.divider()
