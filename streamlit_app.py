@@ -68,11 +68,11 @@ with st.sidebar:
 
 # Tabs for different modules
 tab_chat, tab_beam, tab_truss, tab_concrete, tab_sections = st.tabs([
-    "💬 AI Assistant",
-    "📊 Beam Analysis",
-    "📐 Truss Analysis",
-    "🧱 RC Design",
-    "📚 Steel Sections"
+    "Chat Assistant",
+    "Beam Analysis",
+    "Truss Analysis",
+    "RC Design",
+    "Steel Sections"
 ])
 
 # --- TAB 1: AI ASSISTANT ---
@@ -186,33 +186,42 @@ with tab_beam:
             try:
                 ss = SystemElements()
                 # Create beam elements
-                # To accurately place loads and supports, we should split the beam into multiple elements
+                # To accurately place loads and supports, we split the beam at those points
+                # and also add intermediate points for smooth UDL visualization.
                 points = [0, span]
                 for s in st.session_state.supports: points.append(s['pos'])
-                for l in st.session_state.loads: points.append(l['pos'])
-                points = sorted(list(set(points)))
+                for l in st.session_state.loads:
+                    points.append(l['pos'])
+                    if "UDL" in l['type']: points.append(l['end'])
+
+                # Add intermediate points for smooth curves (especially for UDLs)
+                points.extend(np.linspace(0, span, 51).tolist())
+                points = sorted(list(set([round(p, 4) for p in points])))
 
                 for i in range(len(points)-1):
-                    ss.add_element(location=[[points[i], 0], [points[i+1], 0]])
+                    if points[i+1] > points[i]:
+                        ss.add_element(location=[[points[i], 0], [points[i+1], 0]])
 
                 # Add supports
                 for s in st.session_state.supports:
                     node_id = ss.find_node_id([s['pos'], 0])
-                    if s['type'] == "Pin": ss.add_support_hinged(node_id)
-                    elif s['type'] == "Roller": ss.add_support_roll(node_id)
-                    elif s['type'] == "Fixed": ss.add_support_fixed(node_id)
+                    if node_id:
+                        if s['type'] == "Pin": ss.add_support_hinged(node_id)
+                        elif s['type'] == "Roller": ss.add_support_roll(node_id)
+                        elif s['type'] == "Fixed": ss.add_support_fixed(node_id)
 
                 # Add loads
                 for l in st.session_state.loads:
                     if "Point Load" in l['type']:
                         node_id = ss.find_node_id([l['pos'], 0])
-                        ss.point_load(node_id, Fy=l['val'])
+                        if node_id:
+                            ss.point_load(node_id, Fy=l['val'])
                     else: # UDL
                         # Find elements that fall under the UDL
                         for el_id in ss.element_map:
                             el = ss.element_map[el_id]
-                            # If element is within [start, end]
-                            if el.node_1.x >= l['pos'] and el.node_2.x <= l['end']:
+                            # Use a small tolerance for float comparison
+                            if el.node_1.x >= (l['pos'] - 1e-4) and el.node_2.x <= (l['end'] + 1e-4):
                                 ss.q_load(q=l['val'], element_id=el_id)
 
                 ss.solve()
@@ -297,10 +306,13 @@ with tab_truss:
         st.markdown("#### 2. Define Members")
         if "t_nodes" in st.session_state and len(st.session_state.t_nodes) >= 2:
             n1 = st.selectbox("From Node", range(len(st.session_state.t_nodes)))
-            n2 = st.selectbox("To Node", range(len(st.session_state.t_nodes)), index=1)
+            n2 = st.selectbox("To Node", range(len(st.session_state.t_nodes)), index=min(1, len(st.session_state.t_nodes)-1))
             if st.button("Add Member"):
-                if "t_members" not in st.session_state: st.session_state.t_members = []
-                st.session_state.t_members.append([n1, n2])
+                if n1 == n2:
+                    st.error("Member must connect two different nodes.")
+                else:
+                    if "t_members" not in st.session_state: st.session_state.t_members = []
+                    st.session_state.t_members.append([n1, n2])
 
             if "t_members" in st.session_state and st.session_state.t_members:
                 st.write("Members:", pd.DataFrame(st.session_state.t_members, columns=["Start Node", "End Node"]))
@@ -312,42 +324,70 @@ with tab_truss:
         st.markdown("#### 3. Truss Loads & Supports")
         t_col1, t_col2 = st.columns(2)
         with t_col1:
-            t_node_id = st.number_input("Node ID for Support/Load", min_value=0, max_value=len(st.session_state.t_nodes)-1, value=0)
-            t_support = st.selectbox("Truss Support", ["None", "Pin", "Roller"])
-        with t_col2:
-            t_load_x = st.number_input("Load Fx (kN)", value=0.0)
-            t_load_y = st.number_input("Load Fy (kN)", value=0.0)
+            t_node_sel = st.selectbox("Select Node ID", range(len(st.session_state.t_nodes)))
+            t_sup_type = st.selectbox("Add Support", ["None", "Pin", "Roller"])
+            if t_sup_type != "None":
+                if st.button("Add Support to Node"):
+                    if "t_supports" not in st.session_state: st.session_state.t_supports = []
+                    st.session_state.t_supports.append({"node": t_node_sel, "type": t_sup_type})
 
-        if st.button("Solve Truss"):
+            if "t_supports" in st.session_state and st.session_state.t_supports:
+                st.write("Current Supports:")
+                for i, s in enumerate(st.session_state.t_supports):
+                    st.write(f"- Node {s['node']}: {s['type']}")
+                if st.button("Clear Truss Supports"):
+                    st.session_state.t_supports = []
+                    st.rerun()
+
+        with t_col2:
+            t_fx = st.number_input("Load Fx (kN)", value=0.0, key="t_fx")
+            t_fy = st.number_input("Load Fy (kN)", value=-10.0, key="t_fy")
+            if st.button("Add Load to Node"):
+                if "t_loads" not in st.session_state: st.session_state.t_loads = []
+                st.session_state.t_loads.append({"node": t_node_sel, "fx": t_fx, "fy": t_fy})
+
+            if "t_loads" in st.session_state and st.session_state.t_loads:
+                st.write("Current Loads:")
+                for i, l in enumerate(st.session_state.t_loads):
+                    st.write(f"- Node {l['node']}: Fx={l['fx']}, Fy={l['fy']}")
+                if st.button("Clear Truss Loads"):
+                    st.session_state.t_loads = []
+                    st.rerun()
+
+        st.divider()
+        if st.button("Solve Truss", type="primary"):
             try:
                 ts = SystemElements()
-                for i, node in enumerate(st.session_state.t_nodes):
-                    # Nodes are added implicitly by elements or explicitly?
-                    # anastruct uses add_element which defines nodes
-                    pass
-
-                for i, mem in enumerate(st.session_state.t_members):
+                for mem in st.session_state.t_members:
                     p1 = st.session_state.t_nodes[mem[0]]
                     p2 = st.session_state.t_nodes[mem[1]]
                     ts.add_truss_element(location=[p1, p2])
 
-                # Add support and load to the specified node
-                # Note: node_id in anastruct starts at 1
-                node_id = t_node_id + 1
-                if t_support == "Pin": ts.add_support_hinged(node_id)
-                elif t_support == "Roller": ts.add_support_roll(node_id)
+                # Apply supports
+                if "t_supports" in st.session_state:
+                    for s in st.session_state.t_supports:
+                        pos = st.session_state.t_nodes[s['node']]
+                        nid = ts.find_node_id(pos)
+                        if nid:
+                            if s['type'] == "Pin": ts.add_support_hinged(nid)
+                            elif s['type'] == "Roller": ts.add_support_roll(nid)
 
-                if t_load_x != 0 or t_load_y != 0:
-                    ts.point_load(node_id, Fx=t_load_x, Fy=t_load_y)
-
-                # To be stable, need more supports. This is just a demo.
-                # In a real app, we'd manage supports per node.
-
-                # Let's add a hinged support at node 0 for stability in this demo if not specified
-                if not any(t_support == "Pin" for _ in range(1)): # simplified
-                    ts.add_support_hinged(1)
+                # Apply loads
+                if "t_loads" in st.session_state:
+                    for l in st.session_state.t_loads:
+                        pos = st.session_state.t_nodes[l['node']]
+                        nid = ts.find_node_id(pos)
+                        if nid:
+                            ts.point_load(nid, Fx=l['fx'], Fy=l['fy'])
 
                 ts.solve()
+
+                # Helper to map anastruct node to user node index
+                def get_user_node_id(an_node):
+                    for i, n in enumerate(st.session_state.t_nodes):
+                        if abs(n[0] - an_node.x) < 1e-3 and abs(n[1] - an_node.y) < 1e-3:
+                            return i
+                    return an_node.id
 
                 # Visualization
                 fig_truss = go.Figure()
@@ -355,23 +395,39 @@ with tab_truss:
                     el = ts.element_map[el_id]
                     res = ts.get_element_results(el_id)
                     force = res['axial']
-                    color = "red" if force < 0 else "blue" # Compression/Tension
+                    color = "red" if force < -1e-3 else ("blue" if force > 1e-3 else "gray")
+
+                    u1 = get_user_node_id(el.node_1)
+                    u2 = get_user_node_id(el.node_2)
+
                     fig_truss.add_trace(go.Scatter(
                         x=[el.node_1.x, el.node_2.x],
                         y=[el.node_1.y, el.node_2.y],
-                        mode='lines+markers',
-                        line=dict(color=color, width=abs(force)/10 + 2),
-                        name=f"Mem {el_id}: {force:.1f}kN"
+                        mode='lines+markers+text',
+                        line=dict(color=color, width=min(abs(force)/5 + 2, 10)),
+                        text=[f"N{u1}", f"N{u2}"],
+                        textposition="top center",
+                        name=f"Mem {el_id}: {force:.2f} kN"
                     ))
                 fig_truss.update_layout(title="Truss Force Analysis (Blue: Tension, Red: Compression)")
                 st.plotly_chart(fig_truss, use_container_width=True)
 
-            except Exception as e:
-                st.error(f"Truss Analysis failed: {str(e)}. Ensure the truss is stable and has enough supports.")
+                # Results Table
+                truss_results = []
+                for el_id in ts.element_map:
+                    res = ts.get_element_results(el_id)
+                    truss_results.append({"Member": el_id, "Force (kN)": round(res['axial'], 3)})
+                st.table(pd.DataFrame(truss_results))
 
-    if st.button("Clear Truss Data"):
+            except Exception as e:
+                st.error(f"Truss Analysis failed: {str(e)}")
+                st.info("💡 Hint: Ensure the truss is stable (e.g., at least one Pin and one Roller support) and all nodes are connected.")
+
+    if st.button("Reset Truss Data"):
         st.session_state.t_nodes = []
         st.session_state.t_members = []
+        st.session_state.t_supports = []
+        st.session_state.t_loads = []
         st.rerun()
 
 # --- TAB 4: RC DESIGN ---
