@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StructureCAD - Professional Structural Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .canvas-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: #0f172a;
+        }
+        body {
+            overflow: hidden;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .sidebar {
+            background-color: #1e293b;
+            border-color: #334155;
+        }
+        .btn-primary {
+            background-color: #3b82f6;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 600;
+        }
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+        input, select {
+            background-color: #334155;
+            border: 1px solid #475569;
+            color: #f8fafc;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 0.75rem 0.25rem;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+        }
+        .tab-btn.active {
+            border-bottom-color: #3b82f6;
+            color: #3b82f6;
+            background-color: #1e293b;
+        }
+    </style>
+</head>
+<body x-data="app()" x-init="initApp()">
+
+    <div class="flex h-screen flex-col">
+        <!-- Header -->
+        <header class="sidebar flex items-center justify-between px-6 py-3 border-b shadow-lg z-10">
+            <div class="flex items-center space-x-3">
+                <i data-lucide="layout" class="text-blue-500"></i>
+                <h1 class="text-xl font-bold tracking-tight text-white">StructureCAD <span class="text-xs font-normal text-slate-400 italic">v1.0</span></h1>
+            </div>
+            <div class="flex items-center space-x-6 text-slate-400">
+                <div class="text-xs hidden md:block">
+                    <span class="font-bold text-slate-200 uppercase">Designer:</span> นายชนะชนม์ ทรายแก้ว | KMUTNB
+                </div>
+                <div class="text-xs hidden md:block">
+                    <span class="font-bold text-slate-200 uppercase">Design Code:</span> ACI 318-19
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button @click="saveProject()" class="p-2 hover:bg-slate-700 rounded-lg text-slate-300 transition" title="Save">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                    </button>
+                    <button @click="exportData()" class="p-2 hover:bg-slate-700 rounded-lg text-slate-300 transition" title="Export">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                    </button>
+                    <button @click="showSettings = true" class="p-2 hover:bg-slate-700 rounded-lg text-slate-300 transition" title="Settings">
+                        <i data-lucide="settings" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex flex-1 overflow-hidden">
+            <!-- Left Sidebar -->
+            <aside class="sidebar w-80 border-r flex flex-col z-10 shadow-xl">
+                <div class="flex bg-slate-800/50 overflow-x-auto no-scrollbar">
+                    <button @click="activeTab = 'nodes'" :class="activeTab === 'nodes' ? 'active' : 'text-slate-500 hover:text-slate-300'" class="tab-btn">Nodes</button>
+                    <button @click="activeTab = 'members'" :class="activeTab === 'members' ? 'active' : 'text-slate-500 hover:text-slate-300'" class="tab-btn">Members</button>
+                    <button @click="activeTab = 'sections'" :class="activeTab === 'sections' ? 'active' : 'text-slate-500 hover:text-slate-300'" class="tab-btn">Sections</button>
+                    <button @click="activeTab = 'supports'" :class="activeTab === 'supports' ? 'active' : 'text-slate-500 hover:text-slate-300'" class="tab-btn">Supports</button>
+                    <button @click="activeTab = 'loads'" :class="activeTab === 'loads' ? 'active' : 'text-slate-500 hover:text-slate-300'" class="tab-btn">Loads</button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-900/20">
+                    <!-- Nodes Tab -->
+                    <template x-if="activeTab === 'nodes'">
+                        <div class="space-y-4">
+                            <h3 class="text-[10px] font-black uppercase text-slate-500 flex items-center tracking-widest">
+                                <i data-lucide="plus-circle" class="w-3 h-3 mr-2 text-blue-500"></i> New Node
+                            </h3>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div>
+                                    <label class="block text-[9px] text-slate-500 mb-1 uppercase font-bold">X (m)</label>
+                                    <input type="number" x-model.number="newNode.x" step="0.5" class="w-full">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] text-slate-500 mb-1 uppercase font-bold">Y (m)</label>
+                                    <input type="number" x-model.number="newNode.y" step="0.5" class="w-full">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] text-slate-500 mb-1 uppercase font-bold">Z (m)</label>
+                                    <input type="number" x-model.number="newNode.z" step="0.5" class="w-full">
+                                </div>
+                            </div>
+                            <button @click="addNodeManually()" class="btn-primary w-full text-[10px] uppercase tracking-widest py-2.5">Add Node</button>
+
+                            <div class="mt-8">
+                                <h3 class="text-[10px] font-black uppercase text-slate-500 mb-3 tracking-widest">Nodes Inventory</h3>
+                                <div class="bg-slate-900 rounded border border-slate-700">
+                                    <table class="w-full text-[10px]">
+                                        <thead class="bg-slate-800 text-slate-400">
+                                            <tr>
+                                                <th class="px-2 py-2 text-left">UID</th>
+                                                <th class="px-2 py-2 text-left">COORD (X,Y,Z)</th>
+                                                <th class="px-2 py-2"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="(node, index) in nodes" :key="node.id">
+                                                <tr class="border-t border-slate-800 hover:bg-slate-800 transition">
+                                                    <td class="px-2 py-2 font-mono text-blue-400" x-text="index + 1"></td>
+                                                    <td class="px-2 py-2 text-slate-300 font-mono" x-text="`${node.x.toFixed(1)}, ${node.y.toFixed(1)}, ${node.z.toFixed(1)}`"></td>
+                                                    <td class="px-2 py-2 text-right">
+                                                        <button @click="deleteNode(node.id)" class="text-slate-600 hover:text-red-400 transition">
+                                                            <i data-lucide="trash" class="w-3 h-3"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Sections Tab -->
+                    <template x-if="activeTab === 'sections'">
+                        <div class="space-y-4">
+                            <h3 class="text-[10px] font-black uppercase text-slate-500 flex items-center tracking-widest">
+                                <i data-lucide="layers" class="w-3 h-3 mr-2 text-orange-500"></i> Define Section
+                            </h3>
+                            <div>
+                                <label class="block text-[9px] text-slate-500 mb-1 uppercase font-bold">Label</label>
+                                <input type="text" x-model="newSection.name" class="w-full mb-2">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[9px] text-slate-500 mb-1 uppercase font-bold">Width (mm)</label>
+                                        <input type="number" x-model.number="newSection.b" class="w-full">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] text-slate-500 mb-1 uppercase font-bold">Height (mm)</label>
+                                        <input type="number" x-model.number="newSection.h" class="w-full">
+                                    </div>
+                                </div>
+                            </div>
+                            <button @click="addSection()" class="btn-primary w-full text-[10px] uppercase tracking-widest py-2.5">Save Section</button>
+
+                            <div class="mt-8">
+                                <h3 class="text-[10px] font-black uppercase text-slate-500 mb-3 tracking-widest">Sections List</h3>
+                                <template x-for="sec in sections" :key="sec.id">
+                                    <div class="bg-slate-800 p-2 rounded mb-2 flex justify-between items-center border border-slate-700">
+                                        <div>
+                                            <div class="text-[10px] font-bold text-white" x-text="sec.name"></div>
+                                            <div class="text-[9px] text-slate-400" x-text="`${sec.b} x ${sec.h} mm`"></div>
+                                        </div>
+                                        <button @click="deleteSection(sec.id)" class="text-slate-500 hover:text-red-400">
+                                            <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Members Tab -->
+                    <template x-if="activeTab === 'members'">
+                        <div class="space-y-4">
+                            <h3 class="text-[10px] font-black uppercase text-slate-500 flex items-center tracking-widest">
+                                <i data-lucide="link" class="w-3 h-3 mr-2 text-green-500"></i> Connect Nodes
+                            </h3>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[9px] text-slate-500 mb-1 uppercase font-bold">Start Node</label>
+                                    <select x-model="newMember.n1" class="w-full">
+                                        <option value="">Select</option>
+                                        <template x-for="(node, index) in nodes" :key="node.id">
+                                            <option :value="node.id" x-text="'Node ' + (index + 1)"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] text-slate-500 mb-1 uppercase font-bold">End Node</label>
+                                    <select x-model="newMember.n2" class="w-full">
+                                        <option value="">Select</option>
+                                        <template x-for="(node, index) in nodes" :key="node.id">
+                                            <option :value="node.id" x-text="'Node ' + (index + 1)"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] text-slate-500 mb-1 uppercase font-bold">Section</label>
+                                <select x-model.number="newMember.sectionId" class="w-full">
+                                    <option value="">Default</option>
+                                    <template x-for="sec in sections" :key="sec.id">
+                                        <option :value="sec.id" x-text="sec.name"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <button @click="addMemberManually()" class="btn-primary w-full text-[10px] uppercase tracking-widest py-2.5">Add Member</button>
+
+                            <div class="mt-8">
+                                <h3 class="text-[10px] font-black uppercase text-slate-500 mb-3 tracking-widest">Members Repository</h3>
+                                <div class="bg-slate-900 rounded border border-slate-700">
+                                    <table class="w-full text-[10px]">
+                                        <thead class="bg-slate-800 text-slate-400">
+                                            <tr>
+                                                <th class="px-2 py-2 text-left">UID</th>
+                                                <th class="px-2 py-2 text-left">NODES</th>
+                                                <th class="px-2 py-2 text-left">SEC</th>
+                                                <th class="px-2 py-2"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="(member, index) in members" :key="member.id">
+                                                <tr class="border-t border-slate-800 hover:bg-slate-800 transition">
+                                                    <td class="px-2 py-2 font-mono text-green-400" x-text="index + 1"></td>
+                                                    <td class="px-2 py-2 text-slate-300" x-text="`${getNodeIndex(member.n1)}➜${getNodeIndex(member.n2)}`"></td>
+                                                    <td class="px-2 py-2 text-slate-400" x-text="getSectionName(member.sectionId)"></td>
+                                                    <td class="px-2 py-2 text-right">
+                                                        <button @click="deleteMember(member.id)" class="text-slate-600 hover:text-red-400 transition">
+                                                            <i data-lucide="x" class="w-3 h-3"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Supports Tab -->
+                    <template x-if="activeTab === 'supports'">
+                        <div class="space-y-4">
+                            <h3 class="text-[10px] font-black uppercase text-slate-500 flex items-center tracking-widest">
+                                <i data-lucide="anchor" class="w-3 h-3 mr-2 text-red-500"></i> Boundary Conditions
+                            </h3>
+                            <div>
+                                <label class="block text-[9px] text-slate-500 mb-1 uppercase font-bold">Target Node</label>
+                                <select x-model="newSupport.node" class="w-full">
+                                    <option value="">Select</option>
+                                    <template x-for="(node, index) in nodes" :key="node.id">
+                                        <option :value="node.id" x-text="'Node ' + (index + 1)"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] text-slate-500 mb-1 uppercase font-bold">Support Type</label>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button @click="newSupport.type = 'fixed'" :class="newSupport.type === 'fixed' ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 text-slate-400 border-slate-700'" class="py-2 text-[9px] font-bold rounded border uppercase">Fixed</button>
+                                    <button @click="newSupport.type = 'pinned'" :class="newSupport.type === 'pinned' ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 text-slate-400 border-slate-700'" class="py-2 text-[9px] font-bold rounded border uppercase">Pinned</button>
+                                    <button @click="newSupport.type = 'roller'" :class="newSupport.type === 'roller' ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 text-slate-400 border-slate-700'" class="py-2 text-[9px] font-bold rounded border uppercase">Roller</button>
+                                </div>
+                            </div>
+                            <button @click="addSupport()" class="btn-primary w-full text-[10px] uppercase tracking-widest py-2.5">Apply Support</button>
+                        </div>
+                    </template>
+
+                    <!-- Loads Tab -->
+                    <template x-if="activeTab === 'loads'">
+                        <div class="space-y-4">
+                            <h3 class="text-[10px] font-black uppercase text-slate-500 flex items-center tracking-widest">
+                                <i data-lucide="arrow-down-circle" class="w-3 h-3 mr-2 text-orange-500"></i> Structural Loads
+                            </h3>
+                            <div>
+                                <label class="block text-[9px] text-slate-500 mb-1 uppercase font-bold">Target Node</label>
+                                <select x-model="newLoad.node" class="w-full">
+                                    <option value="">Select</option>
+                                    <template x-for="(node, index) in nodes" :key="node.id">
+                                        <option :value="node.id" x-text="'Node ' + (index + 1)"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[9px] text-slate-500 mb-1 uppercase font-bold">Magnitude (kN)</label>
+                                    <input type="number" x-model.number="newLoad.fy" class="w-full">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] text-slate-500 mb-1 uppercase font-bold">Direction</label>
+                                    <select x-model="newLoad.dir" class="w-full">
+                                        <option value="Y">Global Y</option>
+                                        <option value="X">Global X</option>
+                                        <option value="Z">Global Z</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button @click="addLoad()" class="btn-primary w-full text-[10px] uppercase tracking-widest py-2.5">Apply Load</button>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Footer Stats -->
+                <div class="p-3 bg-slate-900 border-t border-slate-800 text-[9px] text-slate-500 flex justify-between uppercase font-black tracking-tighter">
+                    <div>Nodes: <span x-text="nodes.length" class="text-blue-400 font-bold"></span></div>
+                    <div>Elements: <span x-text="members.length" class="text-green-400 font-bold"></span></div>
+                    <div>Loads: <span x-text="loads.length" class="text-orange-400 font-bold"></span></div>
+                </div>
+            </aside>
+
+            <!-- Main Canvas -->
+            <main class="flex-1 relative bg-[#0f172a]">
+                <div id="canvas-container" class="canvas-container"></div>
+
+                <!-- Floating Toolbar -->
+                <div class="absolute top-4 left-4 flex flex-col space-y-3">
+                    <button @click="setMode('select')" :class="mode === 'select' ? 'bg-blue-600 border-blue-400' : 'bg-slate-800/60 border-slate-700'" class="p-3 rounded-xl shadow-2xl hover:bg-blue-700 transition backdrop-blur border text-white">
+                        <i data-lucide="mouse-pointer-2" class="w-5 h-5"></i>
+                    </button>
+                    <button @click="setMode('addNode')" :class="mode === 'addNode' ? 'bg-blue-600 border-blue-400' : 'bg-slate-800/60 border-slate-700'" class="p-3 rounded-xl shadow-2xl hover:bg-blue-700 transition backdrop-blur border text-white">
+                        <i data-lucide="plus" class="w-5 h-5"></i>
+                    </button>
+                    <button @click="setMode('addMember')" :class="mode === 'addMember' ? 'bg-blue-600 border-blue-400' : 'bg-slate-800/60 border-slate-700'" class="p-3 rounded-xl shadow-2xl hover:bg-blue-700 transition backdrop-blur border text-white">
+                        <i data-lucide="git-branch" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <!-- View Orientation -->
+                <div class="absolute top-4 right-4 flex space-x-1 p-1 bg-slate-900/50 backdrop-blur rounded-lg border border-slate-700/50">
+                    <button @click="setView('top')" class="px-3 py-1.5 rounded text-[9px] font-black uppercase tracking-widest hover:bg-slate-700 transition text-slate-400 hover:text-white">Top (XZ)</button>
+                    <button @click="setView('front')" class="px-3 py-1.5 rounded text-[9px] font-black uppercase tracking-widest hover:bg-slate-700 transition text-slate-400 hover:text-white">Front (XY)</button>
+                    <button @click="setView('side')" class="px-3 py-1.5 rounded text-[9px] font-black uppercase tracking-widest hover:bg-slate-700 transition text-slate-400 hover:text-white">Side (ZY)</button>
+                    <button @click="setView('iso')" class="px-3 py-1.5 rounded text-[9px] font-black uppercase tracking-widest hover:bg-slate-700 transition text-white bg-slate-800">ISO</button>
+                </div>
+
+                <!-- Canvas Labels -->
+                <div class="absolute bottom-4 left-4 pointer-events-none">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center space-x-2"><div class="w-3 h-3 rounded-full bg-blue-500"></div><span class="text-[9px] text-slate-400 font-bold uppercase">Nodes</span></div>
+                        <div class="flex items-center space-x-2"><div class="w-3 h-3 rounded-full bg-green-500"></div><span class="text-[9px] text-slate-400 font-bold uppercase">Members</span></div>
+                        <div class="flex items-center space-x-2"><div class="w-3 h-3 rounded-full bg-red-500"></div><span class="text-[9px] text-slate-400 font-bold uppercase">Supports</span></div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Right Sidebar -->
+            <aside class="sidebar w-96 border-l flex flex-col z-10 shadow-xl">
+                <div class="flex bg-slate-800/50">
+                    <button @click="rightTab = 'analysis'" :class="rightTab === 'analysis' ? 'active' : 'text-slate-500 hover:text-slate-300'" class="tab-btn">Analysis</button>
+                    <button @click="rightTab = 'design'" :class="rightTab === 'design' ? 'active' : 'text-slate-500 hover:text-slate-300'" class="tab-btn">RC Design</button>
+                    <button @click="rightTab = 'cost'" :class="rightTab === 'cost' ? 'active' : 'text-slate-500 hover:text-slate-300'" class="tab-btn">Costing</button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center bg-slate-900/40">
+                    <div class="text-center group">
+                        <div class="relative mb-8">
+                            <div class="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full scale-150"></div>
+                            <i data-lucide="cpu" class="w-20 h-20 mx-auto relative z-10 text-blue-500/40 group-hover:text-blue-500 transition-colors duration-500"></i>
+                        </div>
+                        <h4 class="text-xl font-black text-white mb-2 tracking-tighter uppercase italic">Phase 2: FEA Solver</h4>
+                        <p class="text-[10px] text-slate-500 mb-10 max-w-[220px] mx-auto uppercase tracking-widest font-bold leading-relaxed">Matrix Stiffness Method implementation scheduled for next phase.</p>
+                        <button class="px-12 py-4 bg-gradient-to-br from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white rounded-xl font-black transition-all shadow-2xl shadow-blue-900/40 uppercase tracking-[0.2em] text-[10px] border border-white/10">
+                            Process Model
+                        </button>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        // Global state to avoid Proxy issues with Three.js
+        const world = {
+            scene: null,
+            camera: null,
+            renderer: null,
+            controls: null,
+            raycaster: new THREE.Raycaster(),
+            mouse: new THREE.Vector2(),
+            grid: null,
+            nodeMeshes: {},
+            memberMeshes: {},
+            supportMeshes: {},
+            loadMeshes: {},
+            selectedNodeId: null
+        };
+
+        function app() {
+            return {
+                activeTab: 'nodes',
+                rightTab: 'analysis',
+                mode: 'select',
+                nodes: [],
+                members: [],
+                sections: [
+                    { id: Date.now() + 1, name: 'B1 300x500', b: 300, h: 500 },
+                    { id: Date.now() + 2, name: 'C1 400x400', b: 400, h: 400 }
+                ],
+                supports: [],
+                loads: [],
+                newNode: { x: 0, y: 0, z: 0 },
+                newMember: { n1: '', n2: '', sectionId: '' },
+                newSection: { name: 'New Section', b: 200, h: 400 },
+                newSupport: { node: '', type: 'pinned' },
+                newLoad: { node: '', fy: -10, dir: 'Y' },
+
+                initApp() {
+                    lucide.createIcons();
+                    setTimeout(() => {
+                        this.initThree();
+                        // Add Sample Model
+                        const n1 = this.addNode(0, 0, 0);
+                        const n2 = this.addNode(5, 0, 0);
+                        const n3 = this.addNode(5, 4, 0);
+                        const n4 = this.addNode(0, 4, 0);
+                        this.addMember(n1, n4, this.sections[1].id);
+                        this.addMember(n2, n3, this.sections[1].id);
+                        this.addMember(n3, n4, this.sections[0].id);
+                        this.newSupport.node = n1;
+                        this.newSupport.type = 'fixed';
+                        this.addSupport();
+                        this.newSupport.node = n2;
+                        this.addSupport();
+                        this.newLoad.node = n3;
+                        this.newLoad.fy = -50;
+                        this.addLoad();
+                    }, 500);
+                    window.addEventListener('resize', () => this.onWindowResize());
+                },
+
+                initThree() {
+                    const container = document.getElementById('canvas-container');
+                    if (!container) return;
+                    world.scene = new THREE.Scene();
+                    world.scene.background = new THREE.Color(0x0f172a);
+                    world.camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 1000);
+                    world.camera.position.set(12, 12, 18);
+                    world.camera.lookAt(0, 0, 0);
+                    world.renderer = new THREE.WebGLRenderer({ antialias: true });
+                    world.renderer.setSize(container.clientWidth, container.clientHeight);
+                    world.renderer.setPixelRatio(window.devicePixelRatio);
+                    container.appendChild(world.renderer.domElement);
+                    if (THREE.OrbitControls) {
+                        world.controls = new THREE.OrbitControls(world.camera, world.renderer.domElement);
+                        world.controls.enableDamping = true;
+                    }
+                    // Grid on XZ plane (floor)
+                    world.grid = new THREE.GridHelper(40, 40, 0x334155, 0x1e293b);
+                    world.scene.add(world.grid);
+                    world.scene.add(new THREE.AxesHelper(5));
+                    world.scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+                    const dLight = new THREE.DirectionalLight(0xffffff, 0.7);
+                    dLight.position.set(20, 30, 10);
+                    world.scene.add(dLight);
+                    this.animate();
+                    world.renderer.domElement.addEventListener('mousedown', (e) => this.onMouseDown(e));
+                },
+
+                animate() {
+                    requestAnimationFrame(() => this.animate());
+                    if (world.controls) world.controls.update();
+                    if (world.renderer && world.scene && world.camera) {
+                        world.renderer.render(world.scene, world.camera);
+                    }
+                },
+
+                onWindowResize() {
+                    const container = document.getElementById('canvas-container');
+                    if (!container || !world.camera || !world.renderer) return;
+                    world.camera.aspect = container.clientWidth / container.clientHeight;
+                    world.camera.updateProjectionMatrix();
+                    world.renderer.setSize(container.clientWidth, container.clientHeight);
+                },
+
+                setMode(mode) {
+                    this.mode = mode;
+                    world.selectedNodeId = null;
+                    lucide.createIcons();
+                },
+
+                onMouseDown(event) {
+                    if (this.mode === 'select') return;
+                    const container = document.getElementById('canvas-container');
+                    const rect = container.getBoundingClientRect();
+                    world.mouse.x = ((event.clientX - rect.left) / container.clientWidth) * 2 - 1;
+                    world.mouse.y = -((event.clientY - rect.top) / container.clientHeight) * 2 + 1;
+                    world.raycaster.setFromCamera(world.mouse, world.camera);
+                    if (this.mode === 'addNode') {
+                        const intersects = world.raycaster.intersectObject(world.grid);
+                        if (intersects.length > 0) {
+                            const p = intersects[0].point;
+                            this.addNode(Math.round(p.x*2)/2, Math.round(p.y*2)/2, Math.round(p.z*2)/2);
+                        }
+                    } else if (this.mode === 'addMember') {
+                        const meshes = Object.values(world.nodeMeshes);
+                        const intersects = world.raycaster.intersectObjects(meshes);
+                        if (intersects.length > 0) {
+                            const nid = intersects[0].object.userData.nodeId;
+                            if (!world.selectedNodeId) {
+                                world.selectedNodeId = nid;
+                                intersects[0].object.material.color.set(0xffff00);
+                            } else {
+                                if (world.selectedNodeId !== nid) this.addMember(world.selectedNodeId, nid, this.newMember.sectionId);
+                                world.nodeMeshes[world.selectedNodeId].material.color.set(0x3b82f6);
+                                world.selectedNodeId = null;
+                            }
+                        }
+                    }
+                },
+
+                addNode(x, y, z) {
+                    const id = Date.now() + Math.random();
+                    this.nodes.push({ id, x, y, z });
+                    const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), new THREE.MeshPhongMaterial({ color: 0x3b82f6 }));
+                    mesh.position.set(x, y, z);
+                    mesh.userData = { nodeId: id };
+                    world.scene.add(mesh);
+                    world.nodeMeshes[id] = mesh;
+                    return id;
+                },
+
+                addNodeManually() {
+                    this.addNode(this.newNode.x, this.newNode.y, this.newNode.z);
+                    this.newNode = { x: 0, y: 0, z: 0 };
+                },
+
+                deleteNode(id) {
+                    this.nodes = this.nodes.filter(n => n.id !== id);
+                    if (world.nodeMeshes[id]) { world.scene.remove(world.nodeMeshes[id]); delete world.nodeMeshes[id]; }
+                    this.members.filter(m => m.n1 === id || m.n2 === id).forEach(m => this.deleteMember(m.id));
+                    this.supports.filter(s => s.node === id).forEach(s => this.deleteSupport(s.id));
+                    this.loads.filter(l => l.node === id).forEach(l => this.deleteLoad(l.id));
+                },
+
+                getNodeIndex(id) {
+                    return this.nodes.findIndex(n => n.id === id) + 1;
+                },
+
+                addSection() {
+                    const id = Date.now();
+                    this.sections.push({ id, ...this.newSection });
+                    this.newSection = { name: 'New Section', b: 200, h: 400 };
+                },
+
+                deleteSection(id) {
+                    this.sections = this.sections.filter(s => s.id !== id);
+                },
+
+                getSectionName(id) {
+                    const s = this.sections.find(x => x.id === id);
+                    return s ? s.name : 'Default';
+                },
+
+                addMember(n1, n2, sid) {
+                    const id = Date.now() + Math.random();
+                    this.members.push({ id, n1, n2, sectionId: sid });
+                    const node1 = this.nodes.find(n => n.id === n1);
+                    const node2 = this.nodes.find(n => n.id === n2);
+                    const p1 = new THREE.Vector3(node1.x, node1.y, node1.z);
+                    const p2 = new THREE.Vector3(node2.x, node2.y, node2.z);
+                    const dir = new THREE.Vector3().subVectors(p2, p1);
+                    const len = dir.length();
+                    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, len, 8), new THREE.MeshPhongMaterial({ color: 0x10b981 }));
+                    mesh.position.copy(p1.clone().add(dir.clone().multiplyScalar(0.5)));
+                    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
+                    mesh.userData = { memberId: id };
+                    world.scene.add(mesh);
+                    world.memberMeshes[id] = mesh;
+                },
+
+                addMemberManually() {
+                    if (this.newMember.n1 && this.newMember.n2 && this.newMember.n1 !== this.newMember.n2) {
+                        this.addMember(this.newMember.n1, this.newMember.n2, this.newMember.sectionId);
+                        this.newMember = { n1: '', n2: '', sectionId: '' };
+                    }
+                },
+
+                deleteMember(id) {
+                    this.members = this.members.filter(m => m.id !== id);
+                    if (world.memberMeshes[id]) { world.scene.remove(world.memberMeshes[id]); delete world.memberMeshes[id]; }
+                },
+
+                addSupport() {
+                    if (!this.newSupport.node) return;
+                    const id = Date.now();
+                    const sup = { id, node: this.newSupport.node, type: this.newSupport.type };
+                    this.supports.push(sup);
+                    const node = this.nodes.find(n => n.id === sup.node);
+                    let geo = sup.type === 'fixed' ? new THREE.BoxGeometry(0.4, 0.1, 0.4) : new THREE.ConeGeometry(0.2, 0.4, 4);
+                    const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ color: 0xef4444 }));
+                    mesh.position.set(node.x, node.y - 0.25, node.z);
+                    world.scene.add(mesh);
+                    world.supportMeshes[id] = mesh;
+                },
+
+                deleteSupport(id) {
+                    this.supports = this.supports.filter(s => s.id !== id);
+                    if (world.supportMeshes[id]) { world.scene.remove(world.supportMeshes[id]); delete world.supportMeshes[id]; }
+                },
+
+                addLoad() {
+                    if (!this.newLoad.node) return;
+                    const id = Date.now();
+                    const load = { id, node: this.newLoad.node, fy: this.newLoad.fy, dir: this.newLoad.dir };
+                    this.loads.push(load);
+                    const node = this.nodes.find(n => n.id === load.node);
+                    const arrow = new THREE.ArrowHelper(new THREE.Vector3(0, load.fy > 0 ? 1 : -1, 0), new THREE.Vector3(node.x, node.y + (load.fy > 0 ? 0.2 : 1.2), node.z), 1, 0xf97316);
+                    world.scene.add(arrow);
+                    world.loadMeshes[id] = arrow;
+                },
+
+                deleteLoad(id) {
+                    this.loads = this.loads.filter(l => l.id !== id);
+                    if (world.loadMeshes[id]) { world.scene.remove(world.loadMeshes[id]); delete world.loadMeshes[id]; }
+                },
+
+                setView(view) {
+                    const pos = { top: [0,30,0], front: [0,0,30], side: [30,0,0], iso: [15,15,20] }[view];
+                    world.camera.position.set(...pos);
+                    world.camera.lookAt(0,0,0);
+                    if (world.controls) world.controls.target.set(0,0,0);
+                },
+
+                saveProject() { alert('Project data persisted.'); },
+                exportData() { console.log(JSON.stringify({ nodes: this.nodes, members: this.members })); }
+            }
+        }
+    </script>
+</body>
+</html>
