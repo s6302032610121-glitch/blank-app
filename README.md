@@ -12,6 +12,7 @@ StructureCAD AI is a professional, high-fidelity structural engineering applicat
   - **Column Design**: Axial capacity check for tied columns.
   - **One-way Slab**: Thickness and reinforcement spacing calculator.
 - **📚 Steel Sections Database**: Searchable database for Thai Industrial Standards (TIS) sections (H-Beam, I-Beam, Channel, CHS).
+- **🌐 Web Component**: A standalone `web_version.html` for lightweight, backend-free beam analysis.
 
 ## 🛠️ Installation
 

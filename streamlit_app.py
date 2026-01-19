@@ -498,6 +498,7 @@ st.divider()
 st.markdown("""
 <div style='text-align: center; color: #666;'>
     <p>StructureCAD AI - Professional Structural Engineering Toolkit</p>
+    <p><i>Standalone HTML version available in <code>web_version.html</code></i></p>
     <p>© 2025 KMUTNB Student Project x Jules AI</p>
 </div>
 """, unsafe_allow_html=True)
