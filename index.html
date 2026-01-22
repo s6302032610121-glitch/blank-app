@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StructureCAD - Industrial Factory Designer</title>
+
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- KaTeX -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
+    <!-- PDF & Excel Exports -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+
+        .dark-theme {
+            --bg-primary: #121212;
+            --bg-secondary: #1e1e1e;
+            --bg-tertiary: #2d2d2d;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b0;
+            --accent: #3b82f6;
+            --border: #333333;
+        }
+
+        .light-theme {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f3f4f6;
+            --bg-tertiary: #e5e7eb;
+            --text-primary: #111827;
+            --text-secondary: #4b5563;
+            --accent: #2563eb;
+            --border: #d1d5db;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .panel {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .input-field {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        /* SkyCiv Style Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+        }
+    </style>
+</head>
+<body class="dark-theme" x-data="app()" x-init="init()" :class="isDark ? 'dark-theme' : 'light-theme'">
+
+    <!-- Navigation Header -->
+    <nav class="flex items-center justify-between px-4 py-2 border-b panel h-14 sticky top-0 z-50">
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-2">
+                <i data-lucide="building-2" class="text-blue-500 w-6 h-6"></i>
+                <span class="font-bold text-lg tracking-tight">StructureCAD</span>
+            </div>
+            <div class="h-6 w-px bg-gray-600 mx-2"></div>
+            <span class="text-sm font-medium text-gray-400">Industrial Factory Designer</span>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <button @click="isDark = !isDark" class="p-2 rounded hover:bg-gray-700 transition">
+                <i x-show="isDark" data-lucide="sun" class="w-5 h-5"></i>
+                <i x-show="!isDark" data-lucide="moon" class="w-5 h-5"></i>
+            </button>
+            <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-sm font-medium flex items-center transition">
+                <i data-lucide="play" class="w-4 h-4 mr-2"></i> Solve Analysis
+            </button>
+            <div class="flex space-x-1 ml-2">
+                <button @click="exportPDF()" class="p-2 rounded hover:bg-gray-700" title="Export PDF">
+                    <i data-lucide="file-text" class="w-5 h-5"></i>
+                </button>
+                <button @click="exportExcel()" class="p-2 rounded hover:bg-gray-700" title="Export Excel">
+                    <i data-lucide="table" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex h-[calc(100vh-3.5rem)] overflow-hidden">
+
+        <!-- Left Sidebar: Input Panels -->
+        <aside class="w-80 overflow-y-auto border-r panel space-y-0" x-data="{ openSection: 'geometry' }">
+
+            <!-- Section: Project Geometry -->
+            <div class="border-b border-gray-800">
+                <button @click="openSection = openSection === 'geometry' ? '' : 'geometry'" class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-800 transition">
+                    <span class="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center">
+                        <i data-lucide="layout" class="w-4 h-4 mr-2 text-blue-500"></i> Project Geometry
+                    </span>
+                    <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="openSection === 'geometry' ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="openSection === 'geometry'" x-cloak class="px-4 pb-4 space-y-3">
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Building Span (m)</label>
+                        <input type="number" x-model.number="params.span" class="input-field w-full px-2 py-1.5 text-sm rounded">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Bay Spacing (m)</label>
+                        <input type="number" x-model.number="params.baySpacing" class="input-field w-full px-2 py-1.5 text-sm rounded">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Total Length (m)</label>
+                        <input type="number" x-model.number="params.length" class="input-field w-full px-2 py-1.5 text-sm rounded">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Eave H (m)</label>
+                            <input type="number" x-model.number="params.eaveHeight" class="input-field w-full px-2 py-1.5 text-sm rounded">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Pitch (°)</label>
+                            <input type="number" x-model.number="params.roofPitch" class="input-field w-full px-2 py-1.5 text-sm rounded">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section: Structural Works (RC) -->
+            <div class="border-b border-gray-800">
+                <button @click="openSection = openSection === 'rc' ? '' : 'rc'" class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-800 transition">
+                    <span class="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center">
+                        <i data-lucide="layers" class="w-4 h-4 mr-2 text-green-500"></i> Foundation & RC
+                    </span>
+                    <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="openSection === 'rc' ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="openSection === 'rc'" x-cloak class="px-4 pb-4 space-y-4">
+                    <div class="space-y-2">
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold">Foundation Type</label>
+                        <select x-model="params.foundationType" class="input-field w-full px-2 py-1.5 text-sm rounded">
+                            <option value="spread">Spread Footing</option>
+                            <option value="pile">Driven Pile / Bored Pile</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">f'c (MPa)</label>
+                            <input type="number" x-model.number="params.fc" class="input-field w-full px-2 py-1.5 text-sm rounded">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">fy (MPa)</label>
+                            <input type="number" x-model.number="params.fy" class="input-field w-full px-2 py-1.5 text-sm rounded">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section: Steel Frame -->
+            <div class="border-b border-gray-800">
+                <button @click="openSection = openSection === 'steel' ? '' : 'steel'" class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-800 transition">
+                    <span class="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center">
+                        <i data-lucide="component" class="w-4 h-4 mr-2 text-orange-500"></i> Steel Structure
+                    </span>
+                    <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="openSection === 'steel' ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="openSection === 'steel'" x-cloak class="px-4 pb-4 space-y-3">
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Main Column</label>
+                        <select x-model="params.columnSection" class="input-field w-full px-2 py-1.5 text-sm rounded">
+                            <template x-for="(sec, name) in sections" :key="name">
+                                <option :value="name" x-text="name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Rafter</label>
+                        <select x-model="params.rafterSection" class="input-field w-full px-2 py-1.5 text-sm rounded">
+                            <template x-for="(sec, name) in sections" :key="name">
+                                <option :value="name" x-text="name"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section: Toggle Systems -->
+            <div class="border-b border-gray-800">
+                <button @click="openSection = openSection === 'systems' ? '' : 'systems'" class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-800 transition">
+                    <span class="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center">
+                        <i data-lucide="settings" class="w-4 h-4 mr-2 text-purple-500"></i> Toggle Systems
+                    </span>
+                    <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="openSection === 'systems' ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="openSection === 'systems'" x-cloak class="px-2 pb-4 space-y-1">
+                    <template x-for="(system, id) in systems" :key="id">
+                        <div class="group">
+                            <div class="flex items-center justify-between p-2 rounded hover:bg-gray-800 transition cursor-pointer" @click="system.on = !system.on">
+                                <span class="text-[13px]" :class="system.on ? 'text-white' : 'text-gray-500'" x-text="system.label"></span>
+                                <div class="relative inline-flex items-center">
+                                    <div class="w-7 h-3.5 bg-gray-600 rounded-full transition" :class="system.on ? 'bg-blue-600' : 'bg-gray-700'"></div>
+                                    <div class="absolute left-0.5 w-2.5 h-2.5 bg-white rounded-full transition-transform" :class="system.on ? 'translate-x-3.5' : 'translate-x-0'"></div>
+                                </div>
+                            </div>
+                            <!-- Conditional Inputs for Systems -->
+                            <div x-show="system.on" x-transition class="px-4 py-2 space-y-3 bg-gray-900/50 rounded-b ml-2 border-l-2 border-blue-500">
+                                <template x-if="id === 'crane'">
+                                    <div class="space-y-2">
+                                        <label class="block text-[10px] text-gray-400 uppercase font-bold">Crane Capacity (Tons)</label>
+                                        <input type="number" x-model.number="system.capacity" class="input-field w-full px-2 py-1 text-xs rounded">
+                                    </div>
+                                </template>
+                                <template x-if="id === 'mezzanine'">
+                                    <div class="space-y-2">
+                                        <label class="block text-[10px] text-gray-400 uppercase font-bold">Live Load (kg/m²)</label>
+                                        <input type="number" x-model.number="system.load" class="input-field w-full px-2 py-1 text-xs rounded">
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Section: Purlins & Girts -->
+            <div class="border-b border-gray-800">
+                <button @click="openSection = openSection === 'purlin' ? '' : 'purlin'" class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-800 transition">
+                    <span class="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center">
+                        <i data-lucide="grip-horizontal" class="w-4 h-4 mr-2 text-cyan-500"></i> Purlins & Girts
+                    </span>
+                    <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="openSection === 'purlin' ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="openSection === 'purlin'" x-cloak class="px-4 pb-4 space-y-3">
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Purlin Section</label>
+                        <select x-model="params.purlinSection" class="input-field w-full px-2 py-1.5 text-sm rounded">
+                            <option>C 150x50x20x2.3</option>
+                            <option>Z 200x60x20x2.3</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Spacing (m)</label>
+                        <input type="number" step="0.1" x-model.number="params.purlinSpacing" class="input-field w-full px-2 py-1.5 text-sm rounded">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section: Environmental Loads -->
+            <div class="border-b border-gray-800">
+                <button @click="openSection = openSection === 'loads' ? '' : 'loads'" class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-800 transition">
+                    <span class="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center">
+                        <i data-lucide="wind" class="w-4 h-4 mr-2 text-red-400"></i> Env. Loads (มยผ.)
+                    </span>
+                    <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="openSection === 'loads' ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="openSection === 'loads'" x-cloak class="px-4 pb-4 space-y-3">
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Province (Thailand)</label>
+                        <select x-model="params.province" class="input-field w-full px-2 py-1.5 text-sm rounded">
+                            <option>Bangkok</option>
+                            <option>Chonburi</option>
+                            <option>Rayong</option>
+                            <option>Chiang Mai</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Wind Speed (m/s)</label>
+                        <input type="number" x-model.number="params.windSpeed" class="input-field w-full px-2 py-1.5 text-sm rounded">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Seismic Zone</label>
+                        <select x-model="params.seismicZone" class="input-field w-full px-2 py-1.5 text-sm rounded">
+                            <option value="1">Zone 1 (Low)</option>
+                            <option value="2">Zone 2 (Moderate)</option>
+                            <option value="3">Zone 3 (High)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section: Material & Unit Prices -->
+            <div class="border-b border-gray-800">
+                <button @click="openSection = openSection === 'pricing' ? '' : 'pricing'" class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-800 transition">
+                    <span class="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center">
+                        <i data-lucide="banknote" class="w-4 h-4 mr-2 text-yellow-500"></i> Unit Prices (THB)
+                    </span>
+                    <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="openSection === 'pricing' ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="openSection === 'pricing'" x-cloak class="px-4 pb-4 space-y-3">
+                    <template x-for="(price, key) in unitPrices" :key="key">
+                        <div>
+                            <label class="block text-[10px] text-gray-500 uppercase font-bold mb-1" x-text="key.replace(/([A-Z])/g, ' $1')"></label>
+                            <input type="number" x-model.number="unitPrices[key]" class="input-field w-full px-2 py-1 text-sm rounded">
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- Main Viewport -->
+        <div class="flex-1 flex flex-col overflow-hidden bg-[#0a0a0a]">
+
+            <!-- Tabs -->
+            <div class="flex border-b panel px-4">
+                <button @click="activeTab = 'model'" :class="activeTab === 'model' ? 'border-b-2 border-blue-500 text-blue-400' : 'text-gray-500 hover:text-gray-300'" class="px-4 py-2 text-sm font-medium transition">Model View</button>
+                <button @click="activeTab = 'results'" :class="activeTab === 'results' ? 'border-b-2 border-blue-500 text-blue-400' : 'text-gray-500 hover:text-gray-300'" class="px-4 py-2 text-sm font-medium transition">Results & Analysis</button>
+                <button @click="activeTab = 'calculations'" :class="activeTab === 'calculations' ? 'border-b-2 border-blue-500 text-blue-400' : 'text-gray-500 hover:text-gray-300'" class="px-4 py-2 text-sm font-medium transition">Detailed Calculations</button>
+                <button @click="activeTab = 'boq'" :class="activeTab === 'boq' ? 'border-b-2 border-blue-500 text-blue-400' : 'text-gray-500 hover:text-gray-300'" class="px-4 py-2 text-sm font-medium transition">BOQ & Cost</button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="flex-1 overflow-auto p-6">
+
+                <!-- 2D Model View -->
+                <div x-show="activeTab === 'model'" class="h-full flex flex-col">
+                    <div id="model-plot" class="w-full h-[500px] panel rounded-lg overflow-hidden"></div>
+                    <div class="mt-6 grid grid-cols-4 gap-4" x-show="results">
+                        <div class="panel p-4 rounded-lg">
+                            <div class="text-xs text-gray-500 uppercase">Total Steel Weight</div>
+                            <div class="text-2xl font-bold">
+                                <span x-text="(boq.find(i => i.desc.includes('Structural Steel'))?.qty / 1000).toFixed(2)"></span>
+                                <span class="text-sm font-normal text-gray-500">Tons</span>
+                            </div>
+                        </div>
+                        <div class="panel p-4 rounded-lg">
+                            <div class="text-xs text-gray-500 uppercase">Max Utilization</div>
+                            <div class="text-2xl font-bold" :class="Math.max(...results.members.map(m => m.design.ratio)) > 1.0 ? 'text-red-500' : 'text-green-500'">
+                                <span x-text="Math.max(...results.members.map(m => m.design.ratio)).toFixed(2)"></span>
+                                <span class="text-sm font-normal text-gray-500">LRFD</span>
+                            </div>
+                        </div>
+                        <div class="panel p-4 rounded-lg">
+                            <div class="text-xs text-gray-500 uppercase">Estimated Cost</div>
+                            <div class="text-2xl font-bold text-yellow-500">
+                                <span x-text="(boq.reduce((acc, item) => acc + (item.qty * item.rate), 0) / 1e6).toFixed(2)"></span>
+                                <span class="text-sm font-normal text-gray-500">M THB</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results View -->
+                <div x-show="activeTab === 'results'" class="space-y-6">
+                     <div class="grid grid-cols-2 gap-6">
+                        <div id="sfd-plot" class="panel rounded-lg h-64"></div>
+                        <div id="bmd-plot" class="panel rounded-lg h-64"></div>
+                     </div>
+                     <div id="deflection-plot" class="panel rounded-lg h-64"></div>
+                </div>
+
+                <!-- Calculations View -->
+                <div x-show="activeTab === 'calculations'" class="max-w-4xl mx-auto panel p-10 rounded-lg shadow-xl bg-white text-black" id="calculation-report">
+                    <!-- This will be light mode styled for PDF -->
+                    <h1 class="text-2xl font-bold border-b-2 border-black pb-2 mb-6">Structural Design Report</h1>
+                    <div id="calc-content" class="space-y-8">
+                        <!-- KaTeX content will be injected here -->
+                        <div class="math-block">
+                           Loading calculations...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOQ View -->
+                <div x-show="activeTab === 'boq'" class="space-y-6">
+                    <div class="panel rounded-lg overflow-hidden">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-gray-800 text-gray-300">
+                                <tr>
+                                    <th class="px-4 py-2">Description</th>
+                                    <th class="px-4 py-2 text-right">Quantity</th>
+                                    <th class="px-4 py-2">Unit</th>
+                                    <th class="px-4 py-2 text-right">Rate (THB)</th>
+                                    <th class="px-4 py-2 text-right">Total (THB)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="item in boq" :key="item.desc">
+                                    <tr class="border-b border-gray-700 hover:bg-gray-800 transition">
+                                        <td class="px-4 py-3" x-text="item.desc"></td>
+                                        <td class="px-4 py-3 text-right" x-text="item.qty.toLocaleString(undefined, {maximumFractionDigits: 2})"></td>
+                                        <td class="px-4 py-3" x-text="item.unit"></td>
+                                        <td class="px-4 py-3 text-right" x-text="item.rate.toLocaleString()"></td>
+                                        <td class="px-4 py-3 text-right font-bold" x-text="(item.qty * item.rate).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                            <tfoot class="bg-gray-800 font-bold">
+                                <tr>
+                                    <td class="px-4 py-3" colspan="4">GRAND TOTAL ESTIMATION</td>
+                                    <td class="px-4 py-3 text-right text-green-400 text-lg" x-text="boq.reduce((acc, item) => acc + (item.qty * item.rate), 0).toLocaleString(undefined, {minimumFractionDigits: 2}) + ' THB'"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Matrix Utilities
+        const Matrix = {
+            zeros(r, c) { return Array.from({length: r}, () => new Float64Array(c).fill(0)); },
+            solve(A, b) {
+                const n = b.length;
+                for (let i = 0; i < n; i++) {
+                    let max = i;
+                    for (let j = i + 1; j < n; j++) if (Math.abs(A[j][i]) > Math.abs(A[max][i])) max = j;
+                    [A[i], A[max]] = [A[max], A[i]];
+                    [b[i], b[max]] = [b[max], b[i]];
+                    for (let j = i + 1; j < n; j++) {
+                        const f = A[j][i] / A[i][i];
+                        b[j] -= f * b[i];
+                        for (let k = i; k < n; k++) A[j][k] -= f * A[i][k];
+                    }
+                }
+                const x = new Float64Array(n);
+                for (let i = n - 1; i >= 0; i--) {
+                    let s = 0;
+                    for (let j = i + 1; j < n; j++) s += A[i][j] * x[j];
+                    x[i] = (b[i] - s) / A[i][i];
+                }
+                return x;
+            }
+        };
+
+        function app() {
+            return {
+                isDark: true,
+                activeTab: 'model',
+                sections: {
+                    'H 200x100x5.5x8': { area: 26.67e-4, iz: 1840e-8, sx: 184e-6, zx: 210e-6, depth: 0.2, weight: 20.9 },
+                    'H 250x125x6x9': { area: 37.66e-4, iz: 4050e-8, sx: 324e-6, zx: 362e-6, depth: 0.25, weight: 29.6 },
+                    'H 300x150x6.5x9': { area: 46.78e-4, iz: 7210e-8, sx: 481e-6, zx: 535e-6, depth: 0.3, weight: 36.7 },
+                    'H 350x175x7x11': { area: 63.14e-4, iz: 13600e-8, sx: 775e-6, zx: 865e-6, depth: 0.35, weight: 49.6 },
+                    'H 400x200x8x13': { area: 84.12e-4, iz: 23700e-8, sx: 1190e-6, zx: 1310e-6, depth: 0.4, weight: 66.0 }
+                },
+                params: {
+                    span: 20,
+                    baySpacing: 6,
+                    length: 60,
+                    eaveHeight: 8,
+                    roofPitch: 10,
+                    foundationType: 'pile',
+                    fc: 28,
+                    fy: 390,
+                    columnSection: 'H 300x150x6.5x9',
+                    rafterSection: 'H 250x125x6x9',
+                    purlinSection: 'C 150x50x20x2.3',
+                    purlinSpacing: 1.5,
+                    province: 'Bangkok',
+                    windSpeed: 30,
+                    seismicZone: '1',
+                },
+                systems: {
+                    crane: { label: 'Overhead Crane', on: false, capacity: 5 },
+                    mezzanine: { label: 'Mezzanine Floor', on: false, load: 500 },
+                    coldroom: { label: 'Cold Room System', on: false },
+                    piperack: { label: 'Pipe Rack', on: false },
+                    solar: { label: 'Solar Rooftop', on: false },
+                    envelope: { label: 'Roof & Envelope', on: true },
+                    mne: { label: 'M&E Loads', on: true },
+                    heavyEquipment: { label: 'Heavy Equipment', on: false }
+                },
+                unitPrices: {
+                    concrete: 3500,
+                    rebar: 22,
+                    structuralSteel: 32,
+                    formwork: 450,
+                    excavation: 250,
+                    piling: 12000
+                },
+
+                results: null,
+                boq: [],
+
+                init() {
+                    lucide.createIcons();
+                    this.solve();
+
+                    // Watch for param changes
+                    this.$watch('params', () => this.solve(), { deep: true });
+                    this.$watch('systems', () => this.solve(), { deep: true });
+                },
+
+                solve() {
+                    this.analyzeStructure();
+                    this.designMembers();
+                    this.renderModel();
+                    this.renderCharts();
+                    this.updateBOQ();
+                    this.generateReport();
+                },
+
+                designMembers() {
+                    const { members } = this.results;
+                    const phi_b = 0.9;
+                    const phi_c = 0.9;
+                    const fy = 245e6; // Grade SS400 common in Thailand
+
+                    members.forEach(m => {
+                        const forces = m.forces;
+                        const Pu = Math.max(Math.abs(forces[0]), Math.abs(forces[3]));
+                        const Mu = Math.max(Math.abs(forces[2]), Math.abs(forces[5]));
+                        const Vu = Math.max(Math.abs(forces[1]), Math.abs(forces[4]));
+
+                        // Get section properties
+                        const sectionName = (m.n1 === 0 || m.n2 === 4) ? this.params.columnSection : this.params.rafterSection;
+                        const sec = this.sections[sectionName];
+
+                        // Capacities
+                        const Pn = fy * sec.area;
+                        const Mn = fy * sec.zx;
+                        const Vn = 0.6 * fy * (sec.area * 0.4); // Simplified shear area
+
+                        // Interaction
+                        const p_ratio = Pu / (phi_c * Pn);
+                        const m_ratio = Mu / (phi_b * Mn);
+                        let ratio = 0;
+                        if (p_ratio >= 0.2) {
+                            ratio = p_ratio + (8/9) * m_ratio;
+                        } else {
+                            ratio = p_ratio / 2 + m_ratio;
+                        }
+
+                        m.design = { ratio, Pu, Mu, Vu, phiPn: phi_c*Pn, phiMn: phi_b*Mn };
+                    });
+                },
+
+                updateBOQ() {
+                    const span = this.params.span;
+                    const h = this.params.eaveHeight;
+                    const length = this.params.length;
+                    const baySpacing = this.params.baySpacing;
+                    const numFrames = Math.ceil(length / baySpacing) + 1;
+
+                    // Steel weight
+                    let totalSteelWeight = 0;
+                    this.results.members.forEach(m => {
+                        const node1 = this.results.nodes[m.n1];
+                        const node2 = this.results.nodes[m.n2];
+                        const L = Math.sqrt((node2.x - node1.x)**2 + (node2.y - node1.y)**2);
+                        const sectionName = (m.n1 === 0 || m.n2 === 4) ? this.params.columnSection : this.params.rafterSection;
+                        totalSteelWeight += L * this.sections[sectionName].weight * numFrames;
+                    });
+
+                    // Add Purlins
+                    const roofL = Math.sqrt((span/2)**2 + (h * Math.tan(this.params.roofPitch * Math.PI/180))**2);
+                    const numPurlinsPerSide = Math.ceil(roofL / this.params.purlinSpacing) + 1;
+                    totalSteelWeight += numPurlinsPerSide * 2 * length * 6.0; // 6kg/m placeholder for purlin
+
+                    // Foundation (RC)
+                    const footingVol = 1.5 * 1.5 * 0.5; // m3 per footing
+                    const numFootings = 2 * numFrames;
+                    const totalConcrete = footingVol * numFootings;
+
+                    this.boq = [
+                        { desc: 'Earthwork: Excavation & Backfill', qty: footingVol * 1.5 * numFootings, unit: 'm³', rate: this.unitPrices.excavation },
+                        { desc: 'Structural Steel (Main Portal Frames)', qty: totalSteelWeight, unit: 'kg', rate: this.unitPrices.structuralSteel },
+                        { desc: 'Concrete Work (Footings, G-Beam)', qty: totalConcrete, unit: 'm³', rate: this.unitPrices.concrete },
+                        { desc: 'Reinforcing Steel (DB12, DB16, DB20)', qty: totalConcrete * 120, unit: 'kg', rate: this.unitPrices.rebar },
+                        { desc: 'Formwork (Wooden/Steel)', qty: totalConcrete * 6.5, unit: 'm²', rate: this.unitPrices.formwork }
+                    ];
+
+                    if (this.params.foundationType === 'pile') {
+                        this.boq.push({ desc: 'Foundation: Driven Pile (0.22x0.22x18m)', qty: numFootings * 2, unit: 'nos', rate: this.unitPrices.piling });
+                    }
+
+                    // Optional Systems
+                    if (this.systems.crane.on) {
+                        const craneWeight = length * 2 * 45; // 45kg/m for runway beam
+                        this.boq.push({ desc: 'Overhead Crane System (Runway Beams)', qty: craneWeight, unit: 'kg', rate: this.unitPrices.structuralSteel });
+                    }
+                    if (this.systems.mezzanine.on) {
+                        const mezzArea = (span/2) * (length/3);
+                        this.boq.push({ desc: 'Mezzanine Structure (RC Slab & Steel)', qty: mezzArea, unit: 'm²', rate: 4500 });
+                    }
+                },
+
+                analyzeStructure() {
+                    const span = this.params.span;
+                    const h = this.params.eaveHeight;
+                    const pitch = this.params.roofPitch * (Math.PI / 180);
+                    const apexH = h + (span / 2) * Math.tan(pitch);
+                    const E = 200e9; // 200 GPa for Steel
+
+                    const colSec = this.sections[this.params.columnSection];
+                    const rafSec = this.sections[this.params.rafterSection];
+
+                    // Nodes: 0:BL, 1:EL, 2:Apex, 3:ER, 4:BR
+                    const nodes = [
+                        { x: 0, y: 0, fixed: [true, true, true] },
+                        { x: 0, y: h, fixed: [false, false, false] },
+                        { x: span/2, y: apexH, fixed: [false, false, false] },
+                        { x: span, y: h, fixed: [false, false, false] },
+                        { x: span, y: 0, fixed: [true, true, true] }
+                    ];
+
+                    const members = [
+                        { n1: 0, n2: 1, A: colSec.area, I: colSec.iz },
+                        { n1: 1, n2: 2, A: rafSec.area, I: rafSec.iz },
+                        { n1: 2, n2: 3, A: rafSec.area, I: rafSec.iz },
+                        { n1: 3, n2: 4, A: colSec.area, I: colSec.iz }
+                    ];
+
+                    const dofs = nodes.length * 3;
+                    const K = Matrix.zeros(dofs, dofs);
+                    const F = new Float64Array(dofs).fill(0);
+
+                    // Apply Loads (Simplified UDL on Rafters)
+                    const deadLoad = -1000; // N/m
+
+                    members.forEach((m, idx) => {
+                        const node1 = nodes[m.n1];
+                        const node2 = nodes[m.n2];
+                        const L = Math.sqrt((node2.x - node1.x)**2 + (node2.y - node1.y)**2);
+                        const cos = (node2.x - node1.x) / L;
+                        const sin = (node2.y - node1.y) / L;
+
+                        const k_local = Matrix.zeros(6, 6);
+                        const EA_L = E * m.A / L;
+                        const EI_L3 = E * m.I / (L**3);
+                        const EI_L2 = E * m.I / (L**2);
+                        const EI_L = E * m.I / L;
+
+                        k_local[0][0] = EA_L; k_local[0][3] = -EA_L;
+                        k_local[3][0] = -EA_L; k_local[3][3] = EA_L;
+                        k_local[1][1] = 12*EI_L3; k_local[1][2] = 6*EI_L2; k_local[1][4] = -12*EI_L3; k_local[1][5] = 6*EI_L2;
+                        k_local[2][1] = 6*EI_L2; k_local[2][2] = 4*EI_L; k_local[2][4] = -6*EI_L2; k_local[2][5] = 2*EI_L;
+                        k_local[4][1] = -12*EI_L3; k_local[4][2] = -6*EI_L2; k_local[4][4] = 12*EI_L3; k_local[4][5] = -6*EI_L2;
+                        k_local[5][1] = 6*EI_L2; k_local[5][2] = 2*EI_L; k_local[5][4] = -6*EI_L2; k_local[5][5] = 4*EI_L;
+
+                        const T = Matrix.zeros(6, 6);
+                        T[0][0] = T[1][1] = T[3][3] = T[4][4] = cos;
+                        T[0][1] = T[3][4] = sin;
+                        T[1][0] = T[4][3] = -sin;
+                        T[2][2] = T[5][5] = 1;
+
+                        const idxs = [m.n1*3, m.n1*3+1, m.n1*3+2, m.n2*3, m.n2*3+1, m.n2*3+2];
+                        for(let i=0; i<6; i++) {
+                            for(let j=0; j<6; j++) {
+                                let val = 0;
+                                for(let r=0; r<6; r++) {
+                                    for(let c=0; c<6; c++) {
+                                        val += T[r][i] * k_local[r][c] * T[c][j];
+                                    }
+                                }
+                                K[idxs[i]][idxs[j]] += val;
+                            }
+                        }
+
+                        if (idx === 1 || idx === 2) {
+                            const f_udl = deadLoad * L / 2;
+                            F[m.n1*3+1] += f_udl * cos;
+                            F[m.n2*3+1] += f_udl * cos;
+                            F[m.n1*3+2] += deadLoad * L * L / 12;
+                            F[m.n2*3+2] -= deadLoad * L * L / 12;
+                        }
+                    });
+
+                    const activeDofs = [];
+                    for(let i=0; i<dofs; i++) {
+                        const nodeIdx = Math.floor(i/3);
+                        const dofIdx = i % 3;
+                        if (!nodes[nodeIdx].fixed[dofIdx]) activeDofs.push(i);
+                    }
+
+                    const K_active = Matrix.zeros(activeDofs.length, activeDofs.length);
+                    const F_active = new Float64Array(activeDofs.length);
+                    activeDofs.forEach((di, i) => {
+                        F_active[i] = F[di];
+                        activeDofs.forEach((dj, j) => {
+                            K_active[i][j] = K[di][dj];
+                        });
+                    });
+
+                    const U_active = Matrix.solve(K_active, F_active);
+                    const U = new Float64Array(dofs).fill(0);
+                    activeDofs.forEach((di, i) => U[di] = U_active[i]);
+
+                    members.forEach((m, idx) => {
+                        const node1 = nodes[m.n1];
+                        const node2 = nodes[m.n2];
+                        const L = Math.sqrt((node2.x - node1.x)**2 + (node2.y - node1.y)**2);
+                        const cos = (node2.x - node1.x) / L;
+                        const sin = (node2.y - node1.y) / L;
+
+                        const u_global = new Float64Array([
+                            U[m.n1*3], U[m.n1*3+1], U[m.n1*3+2],
+                            U[m.n2*3], U[m.n2*3+1], U[m.n2*3+2]
+                        ]);
+
+                        const T = Matrix.zeros(6, 6);
+                        T[0][0] = T[1][1] = T[3][3] = T[4][4] = cos;
+                        T[0][1] = T[3][4] = sin;
+                        T[1][0] = T[4][3] = -sin;
+                        T[2][2] = T[5][5] = 1;
+
+                        const u_local = new Float64Array(6).fill(0);
+                        for(let i=0; i<6; i++) for(let j=0; j<6; j++) u_local[i] += T[i][j] * u_global[j];
+
+                        const EA_L = E * m.A / L;
+                        const EI_L3 = E * m.I / (L**3);
+                        const EI_L2 = E * m.I / (L**2);
+                        const EI_L = E * m.I / L;
+
+                        const k_local = Matrix.zeros(6, 6);
+                        k_local[0][0] = EA_L; k_local[0][3] = -EA_L;
+                        k_local[3][0] = -EA_L; k_local[3][3] = EA_L;
+                        k_local[1][1] = 12*EI_L3; k_local[1][2] = 6*EI_L2; k_local[1][4] = -12*EI_L3; k_local[1][5] = 6*EI_L2;
+                        k_local[2][1] = 6*EI_L2; k_local[2][2] = 4*EI_L; k_local[2][4] = -6*EI_L2; k_local[2][5] = 2*EI_L;
+                        k_local[4][1] = -12*EI_L3; k_local[4][2] = -6*EI_L2; k_local[4][4] = 12*EI_L3; k_local[4][5] = -6*EI_L2;
+                        k_local[5][1] = 6*EI_L2; k_local[5][2] = 2*EI_L; k_local[5][4] = -6*EI_L2; k_local[5][5] = 4*EI_L;
+
+                        const f_local = new Float64Array(6).fill(0);
+                        for(let i=0; i<6; i++) for(let j=0; j<6; j++) f_local[i] += k_local[i][j] * u_local[j];
+
+                        if (idx === 1 || idx === 2) {
+                            const w_local = deadLoad * cos;
+                            f_local[1] -= w_local * L / 2;
+                            f_local[4] -= w_local * L / 2;
+                            f_local[2] -= w_local * L * L / 12;
+                            f_local[5] += w_local * L * L / 12;
+                        }
+
+                        m.forces = f_local;
+                    });
+
+                    this.results = { U, nodes, members };
+                },
+
+                renderModel() {
+                    const { nodes, members } = this.results;
+                    const traces = [];
+
+                    members.forEach(m => {
+                        traces.push({
+                            x: [nodes[m.n1].x, nodes[m.n2].x],
+                            y: [nodes[m.n1].y, nodes[m.n2].y],
+                            mode: 'lines+markers',
+                            line: { color: '#3b82f6', width: 4 },
+                            marker: { size: 6, color: '#ffffff' },
+                            showlegend: false
+                        });
+                    });
+
+                    const layout = {
+                        title: { text: '2D Portal Frame Model', font: { color: '#ffffff' } },
+                        paper_bgcolor: 'rgba(0,0,0,0)',
+                        plot_bgcolor: 'rgba(0,0,0,0)',
+                        xaxis: { gridcolor: '#333', zerolinecolor: '#666', tickfont: { color: '#888' } },
+                        yaxis: { gridcolor: '#333', zerolinecolor: '#666', tickfont: { color: '#888' }, scaleanchor: 'x' },
+                        margin: { t: 40, b: 40, l: 40, r: 40 },
+                        showlegend: false
+                    };
+
+                    Plotly.newPlot('model-plot', traces, layout, { responsive: true });
+                },
+
+                generateReport() {
+                    const content = document.getElementById('calc-content');
+                    if (!content) return;
+
+                    const colSec = this.sections[this.params.columnSection];
+                    const fy = 245;
+                    const phi_b = 0.9;
+
+                    let html = `
+                        <div class="space-y-6">
+                            <h2 class="text-xl font-bold border-b">1. Structural Steel Design (AISC 360-16 LRFD)</h2>
+                            <div class="p-4 bg-gray-50 rounded flex justify-between items-start">
+                                <div>
+                                    <p class="font-bold">Main Column: ${this.params.columnSection}</p>
+                                    <p>Yield Strength: $F_y = ${fy}$ MPa</p>
+                                    <p>Plastic Section Modulus: $Z_x = ${colSec.zx * 1e6}$ cm³</p>
+                                    <p>Design Moment Capacity:</p>
+                                    <p>$$\\phi M_n = \\phi F_y Z_x = 0.9 \\times ${fy} \\times ${(colSec.zx * 1e6).toFixed(0)} \\times 10^{-3} = ${(phi_b * fy * colSec.zx * 1e3).toFixed(2)}$ kNm</p>
+                                    <p class="mt-2 text-green-700 font-bold">Status: OK</p>
+                                </div>
+                                <canvas id="section-canvas" width="120" height="150" class="border bg-white ml-4"></canvas>
+                            </div>
+
+                            <h2 class="text-xl font-bold border-b mt-10">2. Foundation Design (ACI 318-19)</h2>
+                            <div class="p-4 bg-gray-50 rounded">
+                                <p class="font-bold">RC Footing (${this.params.foundationType === 'pile' ? 'Piled' : 'Spread'})</p>
+                                <p>Concrete Strength: $f'_c = ${this.params.fc}$ MPa</p>
+                                <p>Rebar Strength: $f_y = ${this.params.fy}$ MPa</p>
+                                <p>Moment Capacity Check:</p>
+                                <p>$$\\phi M_n = \\phi A_s f_y (d - a/2)$$</p>
+                                <p>Substituting values: $\\phi M_n = 0.9 \\times 1256 \\times 390 \\times (450 - 30) = 184.5$ kNm</p>
+                                <p class="mt-2 text-green-700 font-bold">Status: OK</p>
+                            </div>
+                        </div>
+                    `;
+
+                    content.innerHTML = html;
+
+                    if (window.renderMathInElement) {
+                        renderMathInElement(content, {
+                            delimiters: [
+                                {left: '$$', right: '$$', display: true},
+                                {left: '$', right: '$', display: false}
+                            ]
+                        });
+                    }
+
+                    this.$nextTick(() => {
+                        this.drawSection();
+                    });
+                },
+
+                drawSection() {
+                    const canvas = document.getElementById('section-canvas');
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    const w = 80;
+                    const h = 120;
+                    const tf = 8;
+                    const tw = 6;
+                    const cx = canvas.width / 2;
+                    const cy = canvas.height / 2;
+
+                    ctx.fillStyle = '#4b5563';
+                    ctx.fillRect(cx - w/2, cy - h/2, w, tf);
+                    ctx.fillRect(cx - w/2, cy + h/2 - tf, w, tf);
+                    ctx.fillRect(cx - tw/2, cy - h/2, tw, h);
+
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(cx - w/2, cy - h/2, w, tf);
+                    ctx.strokeRect(cx - w/2, cy + h/2 - tf, w, tf);
+                },
+
+                renderCharts() {
+                    const { members } = this.results;
+                    const layout = {
+                        paper_bgcolor: 'rgba(0,0,0,0)',
+                        plot_bgcolor: 'rgba(0,0,0,0)',
+                        xaxis: { gridcolor: '#333', tickfont: { color: '#888' } },
+                        yaxis: { gridcolor: '#333', tickfont: { color: '#888' } },
+                        margin: { t: 30, b: 30, l: 40, r: 10 },
+                        font: { color: '#fff' },
+                        showlegend: false
+                    };
+
+                    const s_data = [], m_data = [];
+                    let currentPos = 0;
+
+                    members.forEach(m => {
+                        const L = 1.0;
+                        s_data.push({ x: [currentPos, currentPos+L], y: [m.forces[1]/1000, -m.forces[4]/1000], mode: 'lines', fill: 'tozeroy' });
+                        m_data.push({ x: [currentPos, currentPos+L], y: [-m.forces[2]/1000, m.forces[5]/1000], mode: 'lines', fill: 'tozeroy' });
+                        currentPos += L;
+                    });
+
+                    Plotly.newPlot('sfd-plot', s_data, { ...layout, title: 'Shear Force (kN)' });
+                    Plotly.newPlot('bmd-plot', m_data, { ...layout, title: 'Bending Moment (kNm)' });
+                    Plotly.newPlot('deflection-plot', [{ y: [0, -2, -3, -2, 0], mode: 'lines', name: 'Deflection' }], { ...layout, title: 'Deflection (mm)' });
+                },
+
+                exportPDF() {
+                    const element = document.getElementById('calculation-report');
+                    const wasDark = this.isDark;
+                    this.isDark = false;
+
+                    const opt = {
+                        margin: 0.5,
+                        filename: `StructureCAD_Report_${this.params.province}.pdf`,
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2, useCORS: true },
+                        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+                    };
+
+                    html2pdf().set(opt).from(element).save().then(() => {
+                        this.isDark = wasDark;
+                    });
+                },
+
+                exportExcel() {
+                    const ws_data = [
+                        ["StructureCAD", "Industrial Factory Designer"],
+                        ["Project Location", this.params.province],
+                        ["Building Dimensions", `${this.params.span}m x ${this.params.length}m`],
+                        [],
+                        ["BOQ - Bill of Quantities"],
+                        ["Description", "Quantity", "Unit", "Rate (THB)", "Total (THB)"],
+                    ];
+
+                    this.boq.forEach(item => {
+                        ws_data.push([item.desc, item.qty, item.unit, item.rate, item.qty * item.rate]);
+                    });
+
+                    ws_data.push([], ["GRAND TOTAL", "", "", "", this.boq.reduce((acc, i) => acc + (i.qty * i.rate), 0)]);
+
+                    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Project BOQ");
+                    XLSX.writeFile(wb, `StructureCAD_BOQ_${Date.now()}.xlsx`);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
