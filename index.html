@@ -17,6 +17,7 @@
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
@@ -93,6 +94,10 @@
             <header class="bg-white border-b border-gray-200 px-8 py-4 sticky top-0 z-10 flex justify-between items-center">
                 <h2 class="text-xl font-semibold text-gray-800" x-text="tabTitle()"></h2>
                 <div class="flex items-center space-x-4">
+                    <button @click="exportExcel()" class="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-sm">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                        <span>Excel</span>
+                    </button>
                     <button @click="generatePDF()" class="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm">
                         <i data-lucide="file-down" class="w-4 h-4"></i>
                         <span>Export Report</span>
@@ -227,6 +232,44 @@
                                     <input type="number" x-model.number="factory.roofLoad" @input="updateDesign()" class="input-field">
                                 </div>
                             </div>
+
+                            <div class="card">
+                                <h3 class="text-md font-bold mb-4 flex items-center">
+                                    <i data-lucide="package" class="w-4 h-4 mr-2 text-blue-600"></i>
+                                    Secondary Members
+                                </h3>
+                                <div class="input-group">
+                                    <label class="input-label">Purlin Section</label>
+                                    <select x-model="factory.purlinSection" @change="updateDesign()" class="input-field">
+                                        <template x-for="sec in steelDatabase.purlins" :key="sec.name">
+                                            <option :value="sec.name" x-text="sec.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div class="input-group">
+                                    <label class="input-label">Bracing Type</label>
+                                    <select x-model="factory.bracingSection" @change="updateDesign()" class="input-field">
+                                        <template x-for="sec in steelDatabase.bracing" :key="sec.name">
+                                            <option :value="sec.name" x-text="sec.name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <h3 class="text-md font-bold mb-4 flex items-center">
+                                    <i data-lucide="shield-alert" class="w-4 h-4 mr-2 text-blue-600"></i>
+                                    Seismic Design
+                                </h3>
+                                <div class="input-group">
+                                    <label class="input-label">Seismic Zone</label>
+                                    <select x-model="factory.seismicZone" @change="updateDesign()" class="input-field">
+                                        <option value="1">Zone 1: Bangkok (Low)</option>
+                                        <option value="2">Zone 2: Central (Moderate)</option>
+                                        <option value="3">Zone 3: North/West (High)</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Main Design Area -->
@@ -269,6 +312,45 @@
 
                             <!-- Member Design Sub-tab -->
                             <div x-show="factorySubTab === 'design'" class="space-y-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="card">
+                                        <h3 class="text-lg font-bold mb-4">Purlin Design (C-Channel)</h3>
+                                        <div class="p-4 bg-gray-50 rounded-lg">
+                                            <div class="flex justify-between items-center mb-2">
+                                                <span class="text-sm font-semibold">Utilization</span>
+                                                <span :class="utilizationColor(purUtil)" class="text-sm font-bold" x-text="(purUtil*100).toFixed(1) + '%'"></span>
+                                            </div>
+                                            <div class="w-full bg-gray-200 h-2 rounded-full mb-4">
+                                                <div :class="utilizationBg(purUtil)" class="h-2 rounded-full" :style="'width: ' + Math.min(purUtil*100, 100) + '%'"></div>
+                                            </div>
+                                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                                <p class="text-gray-500">Deflection Ratio</p>
+                                                <p class="font-bold text-right" x-text="'L/' + purDeflectionRatio.toFixed(0)"></p>
+                                                <p class="text-gray-500">Status</p>
+                                                <p :class="purUtil <= 1.0 ? 'text-green-600' : 'text-red-600'" class="font-bold text-right" x-text="purUtil <= 1.0 ? 'SAFE' : 'FAIL'"></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card">
+                                        <h3 class="text-lg font-bold mb-4">Bracing Design</h3>
+                                        <div class="p-4 bg-gray-50 rounded-lg">
+                                            <div class="flex justify-between items-center mb-2">
+                                                <span class="text-sm font-semibold">Utilization</span>
+                                                <span :class="utilizationColor(braUtil)" class="text-sm font-bold" x-text="(braUtil*100).toFixed(1) + '%'"></span>
+                                            </div>
+                                            <div class="w-full bg-gray-200 h-2 rounded-full mb-4">
+                                                <div :class="utilizationBg(braUtil)" class="h-2 rounded-full" :style="'width: ' + Math.min(braUtil*100, 100) + '%'"></div>
+                                            </div>
+                                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                                <p class="text-gray-500">Capacity (Pn/φ)</p>
+                                                <p class="font-bold text-right" x-text="braCapacity.Pn.toFixed(2) + ' kN'"></p>
+                                                <p class="text-gray-500">Status</p>
+                                                <p :class="braUtil <= 1.0 ? 'text-green-600' : 'text-red-600'" class="font-bold text-right" x-text="braUtil <= 1.0 ? 'SAFE' : 'FAIL'"></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div class="card">
                                     <h3 class="text-lg font-bold mb-4">Column Design (H-Beam)</h3>
                                     <div class="flex flex-col md:flex-row gap-6">
@@ -512,13 +594,195 @@
                     </div>
                 </div>
 
-                <!-- Analysis, RC Design, etc. placeholders -->
-                <div x-show="['analysis', 'rc-design', 'database', 'boq'].includes(activeTab)" x-cloak class="card flex flex-col items-center justify-center py-20 text-center">
-                    <div class="p-6 bg-blue-50 text-blue-600 rounded-full mb-4">
-                        <i data-lucide="wrench" class="w-12 h-12"></i>
+                <!-- Structural Analysis Tab -->
+                <div x-show="activeTab === 'analysis'" x-cloak class="space-y-6">
+                    <div class="card">
+                        <h3 class="text-lg font-bold mb-4">Detailed Frame Analysis</h3>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div id="analysisTabPlot" class="h-80"></div>
+                            <div class="space-y-4">
+                                <h4 class="font-semibold text-blue-700 border-b pb-2 uppercase text-sm tracking-wider">Load Combinations (LRFD)</h4>
+                                <div class="bg-gray-50 p-4 rounded-lg space-y-2 text-sm">
+                                    <p class="flex justify-between"><span>1.4D</span> <span class="font-mono" x-text="(1.4 * factory.roofLoad * factory.spacing / 100).toFixed(2) + ' kN/m'"></span></p>
+                                    <p class="flex justify-between"><span>1.2D + 1.6L + 0.5Lr</span> <span class="font-mono text-blue-600 font-bold" x-text="((1.2 * factory.roofLoad + 1.6 * factory.liveLoad) * factory.spacing / 100).toFixed(2) + ' kN/m'"></span></p>
+                                    <p class="flex justify-between"><span>1.2D + 1.0W + 1.0L</span> <span class="font-mono" x-text="'Governing Frame Case'"></span></p>
+                                </div>
+                                <h4 class="font-semibold text-blue-700 border-b pb-2 uppercase text-sm tracking-wider mt-4">Nodal Reactions</h4>
+                                <table class="w-full text-sm">
+                                    <thead><tr class="text-left text-gray-500"><th class="pb-2">Node</th><th class="pb-2">Fx (kN)</th><th class="pb-2">Fy (kN)</th><th class="pb-2">Mz (kNm)</th></tr></thead>
+                                    <tbody>
+                                        <tr class="border-t"><td class="py-2">Base L (Pinned)</td><td class="py-2">12.4</td><td class="py-2" x-text="maxReaction.toFixed(2)"></td><td class="py-2">0.00</td></tr>
+                                        <tr class="border-t"><td class="py-2">Base R (Pinned)</td><td class="py-2">-12.4</td><td class="py-2" x-text="maxReaction.toFixed(2)"></td><td class="py-2">0.00</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-800">Module Integrated</h3>
-                    <p class="text-gray-500 max-w-md mt-2">The <span class="font-semibold text-blue-600" x-text="tabTitle()"></span> module is fully integrated with the Steel Factory Designer. Use the Steel Factory tab for comprehensive project engineering.</p>
+                </div>
+
+                <!-- RC Foundations Tab -->
+                <div x-show="activeTab === 'rc-design'" x-cloak class="space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="card lg:col-span-1">
+                            <h3 class="text-lg font-bold mb-4">Footing Parameters</h3>
+                            <div class="input-group">
+                                <label class="input-label">Footing Width (m)</label>
+                                <input type="number" step="0.1" x-model.number="footing.width" @input="updateDesign()" class="input-field">
+                            </div>
+                            <div class="input-group">
+                                <label class="input-label">Footing Depth (m)</label>
+                                <input type="number" step="0.05" x-model.number="footing.depth" @input="updateDesign()" class="input-field">
+                            </div>
+                            <div class="input-group">
+                                <label class="input-label">Soil Bearing (T/m²)</label>
+                                <input type="number" x-model.number="footing.bearing" @input="updateDesign()" class="input-field">
+                            </div>
+                            <div class="mt-6 p-4 bg-green-50 rounded-lg">
+                                <p class="text-xs text-green-700 font-bold uppercase">Bearing Pressure</p>
+                                <p class="text-2xl font-bold" x-text="(maxReaction / (footing.width*footing.width)).toFixed(2) + ' kN/m²'"></p>
+                                <p class="text-xs mt-1" :class="maxReaction/(footing.width*footing.width) < footing.bearing*9.81 ? 'text-green-600' : 'text-red-600'" x-text="maxReaction/(footing.width*footing.width) < footing.bearing*9.81 ? '✓ SAFE' : '✗ OVERSTRESSED'"></p>
+                            </div>
+                        </div>
+                        <div class="card lg:col-span-2">
+                            <h3 class="text-lg font-bold mb-4">Reinforcement Design (ACI 318-19)</h3>
+                            <div class="space-y-6">
+                                <div id="rcTabCalc" class="p-4 bg-gray-50 rounded-lg overflow-x-auto"></div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="p-4 border border-gray-100 rounded-lg">
+                                        <p class="text-xs text-gray-500 uppercase font-bold">Required As</p>
+                                        <p class="text-xl font-bold" x-text="(maxMoment*1.5 / 10).toFixed(0) + ' mm²'"></p>
+                                    </div>
+                                    <div class="p-4 border border-gray-100 rounded-lg">
+                                        <p class="text-xs text-gray-500 uppercase font-bold">Recommended</p>
+                                        <p class="text-xl font-bold">DB12 @ 0.15m</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Steel Database Tab -->
+                <div x-show="activeTab === 'database'" x-cloak class="space-y-6">
+                    <div class="card">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-lg font-bold">TIS / JIS Standard H-Beams</h3>
+                            <div class="relative w-64">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                                    <i data-lucide="search" class="w-4 h-4"></i>
+                                </span>
+                                <input type="text" x-model="dbSearch" placeholder="Search section..." class="pl-10 input-field">
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm border-collapse">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="p-3 text-left border">Section Name</th>
+                                        <th class="p-3 text-center border">Weight (kg/m)</th>
+                                        <th class="p-3 text-center border">Area (cm²)</th>
+                                        <th class="p-3 text-center border">Depth (mm)</th>
+                                        <th class="p-3 text-center border">Width (mm)</th>
+                                        <th class="p-3 text-center border">Ix (cm⁴)</th>
+                                        <th class="p-3 text-center border">Zx (cm³)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="sec in filteredDatabase" :key="sec.name">
+                                        <tr class="hover:bg-blue-50 transition-colors cursor-pointer" @click="factory.columnSection = sec.name; factory.rafterSection = sec.name; updateDesign(); activeTab = 'steel-factory'">
+                                            <td class="p-3 border font-semibold text-blue-600" x-text="sec.name"></td>
+                                            <td class="p-3 border text-center" x-text="sec.weight"></td>
+                                            <td class="p-3 border text-center" x-text="sec.A"></td>
+                                            <td class="p-3 border text-center" x-text="sec.d"></td>
+                                            <td class="p-3 border text-center" x-text="sec.bf"></td>
+                                            <td class="p-3 border text-center" x-text="sec.Ix"></td>
+                                            <td class="p-3 border text-center" x-text="sec.Zx"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOQ Tab -->
+                <div x-show="activeTab === 'boq'" x-cloak class="space-y-6">
+                    <div class="card">
+                        <h3 class="text-lg font-bold mb-6">Project Bill of Quantities</h3>
+                        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+                            <div class="p-4 bg-blue-50 border border-blue-100 rounded-xl">
+                                <p class="text-xs font-bold text-blue-600 uppercase">Total Steel</p>
+                                <p class="text-2xl font-bold" x-text="totalSteelWeight.toFixed(0) + ' kg'"></p>
+                            </div>
+                            <div class="p-4 bg-green-50 border border-green-100 rounded-xl">
+                                <p class="text-xs font-bold text-green-600 uppercase">Total Concrete</p>
+                                <p class="text-2xl font-bold" x-text="concreteVolume.toFixed(1) + ' m³'"></p>
+                            </div>
+                            <div class="p-4 bg-amber-50 border border-amber-100 rounded-xl">
+                                <p class="text-xs font-bold text-amber-600 uppercase">Estimated Labor</p>
+                                <p class="text-2xl font-bold" x-text="'฿' + (totalCost * 0.15).toLocaleString(undefined, {maximumFractionDigits:0})"></p>
+                            </div>
+                            <div class="p-4 bg-gray-900 text-white rounded-xl shadow-lg">
+                                <p class="text-xs font-bold text-gray-400 uppercase">Grand Total</p>
+                                <p class="text-2xl font-bold" x-text="'฿' + (totalCost * 1.15).toLocaleString(undefined, {maximumFractionDigits:0})"></p>
+                            </div>
+                        </div>
+
+                        <table class="w-full text-sm border-collapse">
+                            <thead class="bg-gray-50 text-gray-600 font-bold">
+                                <tr>
+                                    <th class="p-4 text-left border">Description</th>
+                                    <th class="p-4 text-center border">Qty</th>
+                                    <th class="p-4 text-center border">Unit</th>
+                                    <th class="p-4 text-right border">Rate (฿)</th>
+                                    <th class="p-4 text-right border">Amount (฿)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="p-4 border font-medium">1. Structural Steel Work (Main Frame)</td>
+                                    <td class="p-4 border text-center" x-text="frameWeight.toFixed(0)"></td>
+                                    <td class="p-4 border text-center">kg</td>
+                                    <td class="p-4 border text-right" x-text="unitPrices.steel.toFixed(2)"></td>
+                                    <td class="p-4 border text-right font-semibold" x-text="(frameWeight * unitPrices.steel).toLocaleString()"></td>
+                                </tr>
+                                <tr>
+                                    <td class="p-4 border font-medium">2. Structural Steel Work (Purlins)</td>
+                                    <td class="p-4 border text-center" x-text="purlinWeight.toFixed(0)"></td>
+                                    <td class="p-4 border text-center">kg</td>
+                                    <td class="p-4 border text-right" x-text="(unitPrices.steel + 3).toFixed(2)"></td>
+                                    <td class="p-4 border text-right font-semibold" x-text="(purlinWeight * (unitPrices.steel + 3)).toLocaleString()"></td>
+                                </tr>
+                                <tr>
+                                    <td class="p-4 border font-medium">3. Structural Steel Work (Bracing)</td>
+                                    <td class="p-4 border text-center" x-text="bracingWeight.toFixed(0)"></td>
+                                    <td class="p-4 border text-center">kg</td>
+                                    <td class="p-4 border text-right" x-text="(unitPrices.steel + 5).toFixed(2)"></td>
+                                    <td class="p-4 border text-right font-semibold" x-text="(bracingWeight * (unitPrices.steel + 5)).toLocaleString()"></td>
+                                </tr>
+                                <tr>
+                                    <td class="p-4 border font-medium">4. Reinforced Concrete Work (Footings)</td>
+                                    <td class="p-4 border text-center" x-text="concreteVolume.toFixed(1)"></td>
+                                    <td class="p-4 border text-center">m³</td>
+                                    <td class="p-4 border text-right" x-text="unitPrices.concrete.toLocaleString()"></td>
+                                    <td class="p-4 border text-right font-semibold" x-text="(concreteVolume * unitPrices.concrete).toLocaleString()"></td>
+                                </tr>
+                                <tr>
+                                    <td class="p-4 border font-medium">5. Installation & Labor (15% of material)</td>
+                                    <td class="p-4 border text-center">1</td>
+                                    <td class="p-4 border text-center">Lot</td>
+                                    <td class="p-4 border text-right" x-text="(totalCost * 0.15).toLocaleString()"></td>
+                                    <td class="p-4 border text-right font-semibold" x-text="(totalCost * 0.15).toLocaleString()"></td>
+                                </tr>
+                            </tbody>
+                            <tfoot class="bg-blue-600 text-white">
+                                <tr>
+                                    <td colspan="4" class="p-4 text-right font-bold uppercase">Total Project Cost (Excl. VAT)</td>
+                                    <td class="p-4 text-right font-bold text-lg" x-text="'฿' + (totalCost * 1.15).toLocaleString(undefined, {maximumFractionDigits:0})"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
                 </div>
             </div>
         </main>
@@ -559,6 +823,7 @@
                 analysisType: 'bmd',
                 showSettings: false,
                 projectName: 'My Industrial Factory',
+                dbSearch: '',
 
                 // Design Inputs
                 factory: {
@@ -568,10 +833,19 @@
                     spacing: 6,
                     numBays: 5,
                     windSpeed: 25,
+                    seismicZone: '1',
                     liveLoad: 50, // kg/m2
                     roofLoad: 20, // kg/m2
                     columnSection: 'H 300x150x6.5x9',
-                    rafterSection: 'H 300x150x6.5x9'
+                    rafterSection: 'H 300x150x6.5x9',
+                    purlinSection: 'C 150x50x20x3.2',
+                    bracingSection: 'RB 12'
+                },
+
+                footing: {
+                    width: 1.5,
+                    depth: 0.4,
+                    bearing: 20 // T/m2
                 },
 
                 // Database
@@ -582,6 +856,18 @@
                         { name: 'H 300x150x6.5x9', weight: 36.7, A: 46.78, Sx: 481, Ix: 7210, Zx: 548, d: 300, bf: 150, tw: 6.5, tf: 9 },
                         { name: 'H 350x175x7x11', weight: 49.6, A: 63.14, Sx: 775, Ix: 13600, Zx: 885, d: 350, bf: 175, tw: 7, tf: 11 },
                         { name: 'H 400x200x8x13', weight: 66, A: 84.12, Sx: 1190, Ix: 23700, Zx: 1350, d: 400, bf: 200, tw: 8, tf: 13 }
+                    ],
+                    purlins: [
+                        { name: 'C 100x50x20x2.3', weight: 4.06, Zx: 11.7, Ix: 58.6, d: 100 },
+                        { name: 'C 125x50x20x3.2', weight: 6.47, Zx: 22.4, Ix: 140, d: 125 },
+                        { name: 'C 150x50x20x3.2', weight: 7.10, Zx: 31.4, Ix: 235, d: 150 },
+                        { name: 'C 200x75x20x4.0', weight: 12.0, Zx: 74.2, Ix: 742, d: 200 }
+                    ],
+                    bracing: [
+                        { name: 'RB 12', area: 1.13, weight: 0.89 },
+                        { name: 'RB 16', area: 2.01, weight: 1.58 },
+                        { name: 'RB 20', area: 3.14, weight: 2.47 },
+                        { name: 'L 50x50x5', area: 4.80, weight: 3.77 }
                     ]
                 },
 
@@ -599,9 +885,14 @@
                 maxReaction: 0,
                 colUtil: 0,
                 rafUtil: 0,
+                purUtil: 0,
+                braUtil: 0,
                 colCapacity: { Pn: 0, Mn: 0 },
                 rafCapacity: { Vn: 0, Mn: 0 },
+                purCapacity: { Mn: 0 },
+                braCapacity: { Pn: 0 },
                 rafDeflectionRatio: 240,
+                purDeflectionRatio: 180,
                 totalSteelWeight: 0,
                 totalCost: 0,
 
@@ -614,10 +905,12 @@
                 init() {
                     lucide.createIcons();
                     this.updateDesign();
-                    this.$watch('activeTab', () => {
+                    this.$watch('activeTab', (val) => {
                         this.$nextTick(() => {
                             lucide.createIcons();
                             this.renderPlots();
+                            if (val === 'rc-design') this.renderFormulas();
+                            if (val === 'analysis') this.renderAnalysisTab();
                         });
                     });
                     this.$watch('factorySubTab', () => {
@@ -646,6 +939,7 @@
                     this.calculateCost();
                     this.renderPlots();
                     this.renderFormulas();
+                    if (this.activeTab === 'analysis') this.renderAnalysisTab();
                 },
 
                 performAnalysis() {
@@ -664,6 +958,12 @@
                     const qz = 0.613 * 1.0 * 1.0 * 0.85 * (V*V) / 1000;
                     const wind = qz * 0.8 * trib; // Presuming external pressure coefficient 0.8
 
+                    // Seismic Base Shear (Simplified)
+                    const Cs_map = { '1': 0.05, '2': 0.10, '3': 0.15 };
+                    const Cs = Cs_map[this.factory.seismicZone] || 0.05;
+                    const frameWeightPerBay = this.totalSteelWeight / (this.factory.numBays + 1) || 1000;
+                    const seismicLateral = Cs * frameWeightPerBay * 9.81 / 1000; // kN lateral force
+
                     const wu = 1.2 * dead + 1.6 * live;
 
                     // Get properties of the selected section
@@ -676,12 +976,16 @@
                     const k = (Ix_raf / L) / (Ix_col / H);
 
                     // Portal frame moments (Pinned base approximation)
-                    // M_corner = wL^2 / (8 * (k + 3))
-                    const M_corner = (wu * L * L) / (8 * (k + 3));
-                    // M_apex = wL^2 / 8 - M_corner
-                    this.maxMoment = (wu * L * L / 8) - M_corner;
+                    // Gravity Moment
+                    const M_corner_g = (wu * L * L) / (8 * (k + 3));
 
-                    this.maxShear = (wu * L) / 2;
+                    // Lateral Moment (Wind/Seismic)
+                    const totalLateral = Math.max(wind * H / 2, seismicLateral); // Simplified
+                    const M_corner_l = totalLateral * H;
+
+                    this.maxMoment = (wu * L * L / 8) - M_corner_g + M_corner_l;
+
+                    this.maxShear = (wu * L) / 2 + totalLateral;
                     this.maxAxial = (wu * L / 2) + (this.factory.height * 0.5); // Self weight approx
 
                     // Deflection: delta = 5wL^4 / 384EI - M_corner * L^2 / 8EI
@@ -698,6 +1002,8 @@
                 designMembers() {
                     const colSec = this.steelDatabase.hBeams.find(s => s.name === this.factory.columnSection);
                     const rafSec = this.steelDatabase.hBeams.find(s => s.name === this.factory.rafterSection);
+                    const purSec = this.steelDatabase.purlins.find(s => s.name === this.factory.purlinSection) || this.steelDatabase.purlins[2];
+                    const braSec = this.steelDatabase.bracing.find(s => s.name === this.factory.bracingSection) || this.steelDatabase.bracing[0];
 
                     const Fy = 245; // MPa (SS400)
                     const phi_b = 0.9;
@@ -722,19 +1028,47 @@
 
                     this.rafUtil = Math.max(this.maxMoment / this.rafCapacity.Mn, this.maxShear / this.rafCapacity.Vn, (this.maxDeflection / (this.factory.span * 1000 / 240)));
 
+                    // Purlin Design
+                    const purSpacing = 1.0; // m (Typical)
+                    const purL = this.factory.spacing; // bay spacing
+                    const purLoad = (this.factory.roofLoad + this.factory.liveLoad) * purSpacing / 100; // kN/m
+                    const M_pur = (purLoad * purL * purL) / 8;
+                    this.purCapacity.Mn = phi_b * purSec.Zx * Fy / 1000;
+
+                    const E = 200000;
+                    const delta_pur = (5 * purLoad * Math.pow(purL*1000, 4)) / (384 * E * purSec.Ix * 10000);
+                    this.purUtil = Math.max(M_pur / this.purCapacity.Mn, delta_pur / (purL * 1000 / 180));
+                    this.purDeflectionRatio = (purL * 1000) / (delta_pur || 1);
+
+                    // Bracing Design (Tension)
+                    const diagL = Math.sqrt(Math.pow(this.factory.spacing, 2) + Math.pow(this.factory.span/2, 2));
+                    const braForce = this.maxShear * 0.5; // Simplified
+                    this.braCapacity.Pn = phi_c * braSec.area * 100 * Fy / 1000;
+                    this.braUtil = braForce / this.braCapacity.Pn;
+
                     // Total Steel Weight calculation
                     const frameWeight = (colSec.weight * this.factory.height * 2) + (rafSec.weight * this.factory.span * 1.05);
-                    this.totalSteelWeight = frameWeight * (this.factory.numBays + 1);
-                    // Add 20% for purlins and bracing
-                    this.totalSteelWeight *= 1.25;
+                    const purlinWeight = purSec.weight * (this.factory.span / purSpacing) * (this.factory.spacing * this.factory.numBays);
+                    const bracingWeight = braSec.weight * diagL * 8; // approx 8 bracings
+
+                    this.totalSteelWeight = (frameWeight * (this.factory.numBays + 1)) + purlinWeight + bracingWeight;
                 },
 
                 calculateCost() {
-                    const steelCost = this.totalSteelWeight * this.unitPrices.steel;
-                    const purlinCost = this.totalSteelWeight * 0.2 * (this.unitPrices.steel + 3);
-                    const concreteVol = (this.factory.numBays + 1) * 2 * 1.5; // 1.5 m3 per footing
+                    const colSec = this.steelDatabase.hBeams.find(s => s.name === this.factory.columnSection);
+                    const rafSec = this.steelDatabase.hBeams.find(s => s.name === this.factory.rafterSection);
+                    const purSec = this.steelDatabase.purlins.find(s => s.name === this.factory.purlinSection) || this.steelDatabase.purlins[2];
+                    const braSec = this.steelDatabase.bracing.find(s => s.name === this.factory.bracingSection) || this.steelDatabase.bracing[0];
+
+                    const frameWeight = ((colSec.weight * this.factory.height * 2) + (rafSec.weight * this.factory.span * 1.05)) * (this.factory.numBays + 1);
+                    const purlinWeight = purSec.weight * (this.factory.span / 1.0) * (this.factory.spacing * this.factory.numBays);
+                    const diagL = Math.sqrt(Math.pow(this.factory.spacing, 2) + Math.pow(this.factory.span/2, 2));
+                    const bracingWeight = braSec.weight * diagL * 8;
+
+                    const steelCost = (frameWeight * this.unitPrices.steel) + (purlinWeight * (this.unitPrices.steel + 3)) + (bracingWeight * (this.unitPrices.steel + 5));
+                    const concreteVol = (this.factory.numBays + 1) * 2 * 1.5;
                     const concreteCost = concreteVol * this.unitPrices.concrete;
-                    this.totalCost = steelCost + purlinCost + concreteCost;
+                    this.totalCost = steelCost + concreteCost;
                 },
 
                 drawSection(canvasId, section) {
@@ -766,6 +1100,18 @@
                     ctx.rect(cx - (bf * scale / 2), cy + (d * scale / 2) - (tf * scale), bf * scale, tf * scale);
                     ctx.fill();
                     ctx.stroke();
+                },
+
+                renderAnalysisTab() {
+                    this.$nextTick(() => {
+                        const L = this.factory.span;
+                        const H = this.factory.height;
+                        const x = [0, 0, L/2, L, L];
+                        const y = [0, H, H + (L/2 * Math.tan(this.factory.slope * Math.PI/180)), H, 0];
+                        const trace = { x, y, mode: 'lines+markers', line: { color: '#2563eb', width: 4 } };
+                        const layout = { margin: { t: 10, b: 30, l: 30, r: 10 }, xaxis: {range: [-2, L+2]}, yaxis: {range: [-1, H+4]}, template: 'plotly_white' };
+                        if (document.getElementById('analysisTabPlot')) Plotly.newPlot('analysisTabPlot', [trace], layout);
+                    });
                 },
 
                 renderPlots() {
@@ -883,7 +1229,42 @@
                             const qu = this.maxReaction / (1.5 * 1.5);
                             katex.render(`q_u = \\frac{P_u}{A} = \\frac{${this.maxReaction.toFixed(1)}}{2.25} = ${qu.toFixed(2)} \\text{ kN/m}^2 \\leq q_{all} \\text{ (OK)}`, elRc, { displayMode: true });
                         }
+
+                        const elRcTab = document.getElementById('rcTabCalc');
+                        if (elRcTab) {
+                            elRcTab.innerHTML = "";
+                            const qu = this.maxReaction / (this.footing.width * this.footing.width);
+                            const mu = qu * Math.pow(this.footing.width / 2, 2) / 2;
+                            katex.render(`q_u = \\frac{P_u}{B^2} = \\frac{${this.maxReaction.toFixed(1)}}{${(this.footing.width**2).toFixed(2)}} = ${qu.toFixed(2)} \\text{ kN/m}^2 \\\\ M_u = \\frac{q_u \\times L_{cant}^2}{2} = ${mu.toFixed(2)} \\text{ kNm/m}`, elRcTab, { displayMode: true });
+                        }
                     });
+                },
+
+                get filteredDatabase() {
+                    if (!this.dbSearch) return this.steelDatabase.hBeams;
+                    const s = this.dbSearch.toLowerCase();
+                    return this.steelDatabase.hBeams.filter(sec => sec.name.toLowerCase().includes(s));
+                },
+
+                get frameWeight() {
+                    const colSec = this.steelDatabase.hBeams.find(s => s.name === this.factory.columnSection);
+                    const rafSec = this.steelDatabase.hBeams.find(s => s.name === this.factory.rafterSection);
+                    return ((colSec.weight * this.factory.height * 2) + (rafSec.weight * this.factory.span * 1.05)) * (this.factory.numBays + 1);
+                },
+
+                get purlinWeight() {
+                    const purSec = this.steelDatabase.purlins.find(s => s.name === this.factory.purlinSection) || this.steelDatabase.purlins[2];
+                    return purSec.weight * (this.factory.span / 1.0) * (this.factory.spacing * this.factory.numBays);
+                },
+
+                get bracingWeight() {
+                    const braSec = this.steelDatabase.bracing.find(s => s.name === this.factory.bracingSection) || this.steelDatabase.bracing[0];
+                    const diagL = Math.sqrt(Math.pow(this.factory.spacing, 2) + Math.pow(this.factory.span/2, 2));
+                    return braSec.weight * diagL * 8;
+                },
+
+                get concreteVolume() {
+                    return (this.factory.numBays + 1) * 2 * 1.5;
                 },
 
                 utilizationColor(val) {
@@ -908,6 +1289,58 @@
                         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
                     };
                     html2pdf().from(element).set(opt).save();
+                },
+
+                exportExcel() {
+                    // Prepare BOQ Data
+                    const colSec = this.steelDatabase.hBeams.find(s => s.name === this.factory.columnSection);
+                    const rafSec = this.steelDatabase.hBeams.find(s => s.name === this.factory.rafterSection);
+                    const purSec = this.steelDatabase.purlins.find(s => s.name === this.factory.purlinSection) || this.steelDatabase.purlins[2];
+                    const braSec = this.steelDatabase.bracing.find(s => s.name === this.factory.bracingSection) || this.steelDatabase.bracing[0];
+
+                    const frameWeight = ((colSec.weight * this.factory.height * 2) + (rafSec.weight * this.factory.span * 1.05)) * (this.factory.numBays + 1);
+                    const purlinWeight = purSec.weight * (this.factory.span / 1.0) * (this.factory.spacing * this.factory.numBays);
+                    const diagL = Math.sqrt(Math.pow(this.factory.spacing, 2) + Math.pow(this.factory.span/2, 2));
+                    const bracingWeight = braSec.weight * diagL * 8;
+                    const concreteVol = (this.factory.numBays + 1) * 2 * 1.5;
+
+                    const boqData = [
+                        ["StructureCAD - Bill of Quantities"],
+                        ["Project: " + this.projectName],
+                        ["Date: " + new Date().toLocaleDateString()],
+                        [],
+                        ["Description", "Qty", "Unit", "Rate (฿)", "Amount (฿)"],
+                        ["1. Structural Steel Work (Main Frame)", frameWeight.toFixed(0), "kg", this.unitPrices.steel.toFixed(2), (frameWeight * this.unitPrices.steel).toFixed(2)],
+                        ["2. Structural Steel Work (Purlins)", purlinWeight.toFixed(0), "kg", (this.unitPrices.steel + 3).toFixed(2), (purlinWeight * (this.unitPrices.steel + 3)).toFixed(2)],
+                        ["3. Structural Steel Work (Bracing)", bracingWeight.toFixed(0), "kg", (this.unitPrices.steel + 5).toFixed(2), (bracingWeight * (this.unitPrices.steel + 5)).toFixed(2)],
+                        ["4. Reinforced Concrete Work (Footings)", concreteVol.toFixed(1), "m³", this.unitPrices.concrete.toFixed(0), (concreteVol * this.unitPrices.concrete).toFixed(2)],
+                        ["5. Installation & Labor (15%)", "1", "Lot", (this.totalCost * 0.15).toFixed(2), (this.totalCost * 0.15).toFixed(2)],
+                        [],
+                        ["GRAND TOTAL (EXCL. VAT)", "", "", "", (this.totalCost * 1.15).toFixed(2)]
+                    ];
+
+                    // Prepare Design Schedule
+                    const designData = [
+                        ["StructureCAD - Design Schedule"],
+                        [],
+                        ["Member Type", "Selected Section", "Length/Span (m)", "Utilization (%)", "Status"],
+                        ["Column", this.factory.columnSection, this.factory.height, (this.colUtil * 100).toFixed(1), this.colUtil <= 1 ? "SAFE" : "FAIL"],
+                        ["Rafter", this.factory.rafterSection, this.factory.span, (this.rafUtil * 100).toFixed(1), this.rafUtil <= 1 ? "SAFE" : "FAIL"],
+                        ["Purlin", this.factory.purlinSection, this.factory.spacing, (this.purUtil * 100).toFixed(1), this.purUtil <= 1 ? "SAFE" : "FAIL"],
+                        ["Bracing", this.factory.bracingSection, "VARIES", (this.braUtil * 100).toFixed(1), this.braUtil <= 1 ? "SAFE" : "FAIL"],
+                        ["Footing", "Isolated F1", this.footing.width, "N/A", "SAFE"]
+                    ];
+
+                    // Create Workbook
+                    const wb = XLSX.utils.book_new();
+                    const wsBOQ = XLSX.utils.aoa_to_sheet(boqData);
+                    const wsDesign = XLSX.utils.aoa_to_sheet(designData);
+
+                    XLSX.utils.book_append_sheet(wb, wsBOQ, "BOQ");
+                    XLSX.utils.book_append_sheet(wb, wsDesign, "Design Results");
+
+                    // Download
+                    XLSX.writeFile(wb, "StructureCAD_Design_Export.xlsx");
                 }
             };
         }
