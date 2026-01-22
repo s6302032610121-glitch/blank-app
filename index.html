@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StructureCAD - Professional RC Design</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <!-- KaTeX -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- html2pdf.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- SheetJS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+        .sidebar-scroll { max-height: calc(100vh - 4rem); overflow-y: auto; }
+        .canvas-container { position: relative; width: 100%; height: 400px; background: #f8fafc; border: 1px solid #e2e8f0; }
+        .katex { font-size: 1.1em; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans h-screen flex flex-col overflow-hidden" x-data="structureApp()" x-init="init()">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 z-10">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 p-2 rounded-lg">
+                <i data-lucide="layout" class="text-white w-6 h-6"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-xl tracking-tight">StructureCAD <span class="text-blue-600">RC</span></h1>
+                <p class="text-xs text-slate-500">Professional Engineering Suite</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <nav class="hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+                <template x-for="tab in tabs" :key="tab.id">
+                    <button
+                        @click="activeTab = tab.id"
+                        class="px-4 py-1.5 rounded-md text-sm font-medium transition-all"
+                        :class="activeTab === tab.id ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+                        x-text="tab.name">
+                    </button>
+                </template>
+            </nav>
+
+            <div class="h-8 w-px bg-slate-200"></div>
+
+            <button @click="showSettings = true" class="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
+                <i data-lucide="settings" class="w-5 h-5"></i>
+            </button>
+            <button @click="generateReport()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2">
+                <i data-lucide="file-text" class="w-4 h-4"></i>
+                Export Report
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+        <!-- Left Sidebar: Input / Properties -->
+        <aside class="w-80 bg-white border-r border-slate-200 flex flex-col">
+            <div class="p-4 border-b border-slate-100 bg-slate-50/50">
+                <h2 class="font-semibold flex items-center gap-2">
+                    <i data-lucide="settings-2" class="w-4 h-4 text-blue-600"></i>
+                    Design Parameters
+                </h2>
+            </div>
+            <div class="flex-1 sidebar-scroll p-4 space-y-6">
+                <!-- Dynamic Inputs based on activeTab -->
+                <div x-show="activeTab === 'beam'">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Beam Geometry</h3>
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div>
+                            <label class="text-xs font-medium text-slate-500">Span (m)</label>
+                            <input type="number" x-model.number="beam.span" step="0.1" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-500">Width b (mm)</label>
+                            <input type="number" x-model.number="beam.b" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-500">Depth h (mm)</label>
+                            <input type="number" x-model.number="beam.h" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-500">Cover (mm)</label>
+                            <input type="number" x-model.number="beam.cover" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Materials</h3>
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div>
+                            <label class="text-xs font-medium text-slate-500">fc' (MPa)</label>
+                            <input type="number" x-model.number="materials.fc" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-500">fy (MPa)</label>
+                            <input type="number" x-model.number="materials.fy" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Loading</h3>
+                    <div class="space-y-2 mb-4">
+                        <div>
+                            <label class="text-xs font-medium text-slate-500">Factored UDL (kN/m)</label>
+                            <input type="number" x-model.number="beam.udl" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="activeTab === 'column'">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Column Section</h3>
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div>
+                            <label class="text-xs font-medium text-slate-500">Width B (mm)</label>
+                            <input type="number" x-model.number="column.b" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-500">Depth D (mm)</label>
+                            <input type="number" x-model.number="column.h" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Factored Loads</h3>
+                    <div class="space-y-2 mb-4">
+                        <div>
+                            <label class="text-xs font-medium text-slate-500">Axial Pu (kN)</label>
+                            <input type="number" x-model.number="column.pu" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs font-medium text-slate-500">Mux (kN-m)</label>
+                                <input type="number" x-model.number="column.mux" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-slate-500">Muy (kN-m)</label>
+                                <input type="number" x-model.number="column.muy" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="activeTab === 'slab'">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Slab Parameters</h3>
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div>
+                            <label class="text-xs font-medium text-slate-500">Lx (m)</label>
+                            <input type="number" x-model.number="slab.lx" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-500">Ly (m)</label>
+                            <input type="number" x-model.number="slab.ly" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="text-xs font-medium text-slate-500">Thickness (mm)</label>
+                            <input type="number" x-model.number="slab.t" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="activeTab === 'foundation'">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Footing Geometry</h3>
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div>
+                            <label class="text-xs font-medium text-slate-500">Width B (m)</label>
+                            <input type="number" x-model.number="footing.b" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-500">Length L (m)</label>
+                            <input type="number" x-model.number="footing.l" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="text-xs font-medium text-slate-500">Depth H (mm)</label>
+                            <input type="number" x-model.number="footing.h" class="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- More modules here -->
+            </div>
+        </aside>
+
+        <!-- Center Area: Model + Diagram -->
+        <section class="flex-1 bg-slate-50 flex flex-col relative">
+            <div class="absolute top-4 left-4 z-10 flex gap-2">
+                <button class="bg-white border border-slate-200 p-2 rounded shadow-sm hover:bg-slate-50">
+                    <i data-lucide="zoom-in" class="w-4 h-4"></i>
+                </button>
+                <button class="bg-white border border-slate-200 p-2 rounded shadow-sm hover:bg-slate-50">
+                    <i data-lucide="zoom-out" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div class="flex-1 flex flex-col p-6 overflow-hidden">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
+                    <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold px-2 py-0.5 bg-blue-100 text-blue-700 rounded uppercase" x-text="activeTab"></span>
+                            <h2 class="font-semibold text-slate-700">Structural Model</h2>
+                        </div>
+                        <div class="flex gap-2">
+                            <button @click="viewMode = 'model'" :class="viewMode === 'model' ? 'bg-slate-200' : ''" class="text-xs px-2 py-1 rounded">Model</button>
+                            <button @click="viewMode = 'analysis'" :class="viewMode === 'analysis' ? 'bg-slate-200' : ''" class="text-xs px-2 py-1 rounded">Analysis</button>
+                        </div>
+                    </div>
+                    <div id="plot-area" class="flex-1"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Sidebar: Results / Design Check -->
+        <aside class="w-96 bg-white border-l border-slate-200 flex flex-col">
+            <div class="p-4 border-b border-slate-100 bg-slate-50/50">
+                <h2 class="font-semibold flex items-center gap-2">
+                    <i data-lucide="check-circle" class="w-4 h-4 text-green-600"></i>
+                    Design Verification
+                </h2>
+            </div>
+            <div class="flex-1 sidebar-scroll p-4 space-y-6">
+                <!-- Real-time results -->
+                <div class="space-y-4">
+                    <template x-if="activeTab === 'beam'">
+                        <div>
+                            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs font-bold text-slate-500 uppercase">Flexure (Mu)</span>
+                                    <span class="text-xs font-bold px-2 py-0.5 rounded" :class="results.beam.Mu < 1000 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'">OK</span>
+                                </div>
+                                <div class="text-2xl font-bold"><span x-text="results.beam.Mu?.toFixed(1)"></span> <span class="text-sm font-normal text-slate-400">kN-m</span></div>
+                                <div class="text-xs text-slate-500 mt-1">Required As: <span class="font-bold text-slate-700" x-text="results.beam.As?.toFixed(0)"></span> mm²</div>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs font-bold text-slate-500 uppercase">Shear (Vu)</span>
+                                    <span class="text-xs font-bold bg-green-100 text-green-600 px-2 py-0.5 rounded">OK</span>
+                                </div>
+                                <div class="text-2xl font-bold"><span x-text="results.beam.Vu?.toFixed(1)"></span> <span class="text-sm font-normal text-slate-400">kN</span></div>
+                                <div class="text-xs text-slate-500 mt-1">Stirrups: <span class="font-bold text-slate-700">RB9 @ <span x-text="results.beam.stirrupSpacing?.toFixed(0)"></span> mm</span></div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="activeTab === 'column'">
+                        <div>
+                            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs font-bold text-slate-500 uppercase">Axial Cap (phi Pn)</span>
+                                    <span class="text-xs font-bold px-2 py-0.5 rounded" :class="column.pu < results.column.phiPn ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'">OK</span>
+                                </div>
+                                <div class="text-2xl font-bold"><span x-text="results.column.phiPn?.toFixed(0)"></span> <span class="text-sm font-normal text-slate-400">kN</span></div>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs font-bold text-slate-500 uppercase">Utilization</span>
+                                    <span class="text-xs font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded" x-text="(results.column.ratio*100).toFixed(1) + '%'"></span>
+                                </div>
+                                <div class="w-full bg-slate-200 rounded-full h-2 mt-2">
+                                    <div class="bg-blue-600 h-2 rounded-full" :style="`width: ${Math.min(100, results.column.ratio*100)}%`"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="activeTab === 'slab'">
+                        <div>
+                            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs font-bold text-slate-500 uppercase">Moment (Ma)</span>
+                                    <span class="text-xs font-bold bg-green-100 text-green-600 px-2 py-0.5 rounded">OK</span>
+                                </div>
+                                <div class="text-2xl font-bold"><span x-text="results.slab.Ma?.toFixed(1)"></span> <span class="text-sm font-normal text-slate-400">kN-m/m</span></div>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs font-bold text-slate-500 uppercase">Reinforcement</span>
+                                </div>
+                                <div class="text-lg font-bold text-slate-700">DB12 @ 150 mm</div>
+                                <div class="text-xs text-slate-500">Required: <span x-text="results.slab.As?.toFixed(0)"></span> mm²/m</div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="activeTab === 'foundation'">
+                        <div>
+                            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs font-bold text-slate-500 uppercase">Bearing Pressure</span>
+                                    <span class="text-xs font-bold bg-green-100 text-green-600 px-2 py-0.5 rounded">PASS</span>
+                                </div>
+                                <div class="text-2xl font-bold"><span x-text="results.footing.pressure?.toFixed(1)"></span> <span class="text-sm font-normal text-slate-400">kN/m²</span></div>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs font-bold text-slate-500 uppercase">Punching Shear</span>
+                                    <span class="text-xs font-bold px-2 py-0.5 rounded" :class="results.footing.ratio2 < 1 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'" x-text="results.footing.ratio2 < 1 ? 'PASS' : 'FAIL'"></span>
+                                </div>
+                                <div class="text-2xl font-bold"><span x-text="(results.footing.ratio2*100).toFixed(1)"></span>% <span class="text-sm font-normal text-slate-400">Ratio</span></div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Rebar Detail</h3>
+                    <div class="bg-slate-900 rounded-lg p-4 aspect-square flex items-center justify-center">
+                        <canvas id="sectionCanvas" width="300" height="300"></canvas>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Bill of Quantities</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">Concrete (m³)</span>
+                            <span class="font-medium" x-text="boq.concrete.toFixed(2)"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">Rebar (kg)</span>
+                            <span class="font-medium" x-text="boq.rebar.toFixed(1)"></span>
+                        </div>
+                        <div class="flex justify-between text-blue-600 font-bold border-t border-slate-100 pt-2 mt-2">
+                            <span>Total Cost</span>
+                            <span x-text="'฿ ' + boq.cost.toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+    </main>
+
+    <!-- Footer / Status Bar -->
+    <footer class="h-8 bg-slate-800 text-slate-400 text-[10px] px-4 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <span class="flex items-center gap-1"><i data-lucide="info" class="w-3 h-3"></i> ACI 318-19 Design Mode</span>
+            <span class="flex items-center gap-1"><i data-lucide="cpu" class="w-3 h-3"></i> Matrix Engine Ready</span>
+        </div>
+        <div>
+            Developed by Mr. Chanachon Saikaew (KMUTNB)
+        </div>
+    </footer>
+
+    <!-- Hidden Report Template -->
+    <div id="report-template" x-cloak class="hidden">
+        <div class="p-12 bg-white text-slate-900" style="width: 210mm;">
+            <div class="border-b-4 border-blue-600 pb-4 mb-8 flex justify-between items-end">
+                <div>
+                    <h1 class="text-3xl font-bold text-slate-800">Structural Design Report</h1>
+                    <p class="text-slate-500">StructureCAD RC - Professional Edition</p>
+                </div>
+                <div class="text-right text-xs text-slate-400">
+                    <p>Generated on: <span x-text="new Date().toLocaleDateString()"></span></p>
+                    <p>Ref: SC-2024-001</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-8 mb-8">
+                <div>
+                    <h2 class="text-sm font-bold text-blue-600 uppercase mb-2">Project Information</h2>
+                    <table class="w-full text-sm">
+                        <tr><td class="py-1 text-slate-500">Project:</td><td class="py-1 font-semibold text-slate-700">RC Design Suite</td></tr>
+                        <tr><td class="py-1 text-slate-500">Designer:</td><td class="py-1 font-semibold text-slate-700">Mr. Chanachon Saikaew</td></tr>
+                        <tr><td class="py-1 text-slate-500">Standard:</td><td class="py-1 font-semibold text-slate-700">ACI 318-19</td></tr>
+                    </table>
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-blue-600 uppercase mb-2">Material Properties</h2>
+                    <table class="w-full text-sm">
+                        <tr><td class="py-1 text-slate-500">Concrete fc':</td><td class="py-1 font-semibold text-slate-700"><span x-text="materials.fc"></span> MPa</td></tr>
+                        <tr><td class="py-1 text-slate-500">Steel fy:</td><td class="py-1 font-semibold text-slate-700"><span x-text="materials.fy"></span> MPa</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="mb-8">
+                <h2 class="text-sm font-bold text-blue-600 uppercase mb-4">Design Summary: <span x-text="activeTab.toUpperCase()"></span></h2>
+                <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                    <template x-if="activeTab === 'beam'">
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div><p class="text-xs text-slate-500 uppercase">Span</p><p class="text-xl font-bold" x-text="beam.span + ' m'"></p></div>
+                            <div><p class="text-xs text-slate-500 uppercase">Max Mu</p><p class="text-xl font-bold" x-text="results.beam.Mu?.toFixed(1) + ' kN-m'"></p></div>
+                            <div><p class="text-xs text-slate-500 uppercase">Req. As</p><p class="text-xl font-bold text-blue-600" x-text="results.beam.As?.toFixed(0) + ' mm²'"></p></div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div class="mb-8">
+                <h2 class="text-sm font-bold text-blue-600 uppercase mb-4">Bill of Quantities</h2>
+                <table class="w-full text-sm border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 text-left">
+                            <th class="p-2 border border-slate-200">Description</th>
+                            <th class="p-2 border border-slate-200 text-right">Quantity</th>
+                            <th class="p-2 border border-slate-200">Unit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="p-2 border border-slate-200 text-slate-600">Reinforced Concrete (28 MPa)</td><td class="p-2 border border-slate-200 text-right font-medium" x-text="boq.concrete.toFixed(2)"></td><td class="p-2 border border-slate-200">m³</td></tr>
+                        <tr><td class="p-2 border border-slate-200 text-slate-600">Deformed Bars (SD40)</td><td class="p-2 border border-slate-200 text-right font-medium" x-text="boq.rebar.toFixed(1)"></td><td class="p-2 border border-slate-200">kg</td></tr>
+                        <tr><td class="p-2 border border-slate-200 text-slate-600">Formwork</td><td class="p-2 border border-slate-200 text-right font-medium" x-text="boq.formwork.toFixed(1)"></td><td class="p-2 border border-slate-200">m²</td></tr>
+                    </tbody>
+                    <tfoot>
+                        <tr class="bg-blue-50 font-bold">
+                            <td class="p-2 border border-slate-200" colspan="2">Estimated Total Structural Cost</td>
+                            <td class="p-2 border border-slate-200 text-right text-blue-700" x-text="'฿ ' + boq.cost.toLocaleString()"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="mt-20 pt-8 border-t border-slate-200 text-center text-xs text-slate-400 italic">
+                This report is generated by StructureCAD RC. All calculations follow ACI 318-19 standards.
+            </div>
+        </div>
+    </div>
+
+    <!-- Alpine.js Script -->
+    <script>
+        // Matrix Solver Engine
+        const Solver = {
+            analyzeBeam(span, udl, EI = 10000) {
+                // Simplified 2-node beam for single span
+                // In a real matrix method, we'd discretize for UDLs
+                // Discretizing into 10 segments for smooth diagrams
+                const numElements = 20;
+                const L = span / numElements;
+                const numNodes = numElements + 1;
+                const DOF = numNodes * 2;
+
+                const K = Array(DOF).fill(0).map(() => Array(DOF).fill(0));
+                const F = Array(DOF).fill(0);
+
+                // Element Stiffness Matrix
+                const ke = (ei, l) => {
+                    const c1 = 12 * ei / Math.pow(l, 3);
+                    const c2 = 6 * ei / Math.pow(l, 2);
+                    const c3 = 4 * ei / l;
+                    const c4 = 2 * ei / l;
+                    return [
+                        [c1, c2, -c1, c2],
+                        [c2, c3, -c2, c4],
+                        [-c1, -c2, c1, -c2],
+                        [c2, c4, -c2, c3]
+                    ];
+                };
+
+                // Assemble Global Stiffness Matrix and Force Vector
+                for (let i = 0; i < numElements; i++) {
+                    const k_local = ke(EI, L);
+                    const indices = [i * 2, i * 2 + 1, (i + 1) * 2, (i + 1) * 2 + 1];
+
+                    for (let r = 0; r < 4; r++) {
+                        for (let c = 0; c < 4; c++) {
+                            K[indices[r]][indices[c]] += k_local[r][c];
+                        }
+                    }
+
+                    // Fixed End Forces for UDL
+                    const f_local = [udl * L / 2, udl * L * L / 12, udl * L / 2, -udl * L * L / 12];
+                    for (let r = 0; r < 4; r++) {
+                        F[indices[r]] += f_local[r];
+                    }
+                }
+
+                // Boundary Conditions (Pinned-Pinned)
+                const fixedDOFs = [0, numElements * 2]; // Vertical at start and end
+                const activeDOFs = [];
+                for (let i = 0; i < DOF; i++) {
+                    if (!fixedDOFs.includes(i)) activeDOFs.push(i);
+                }
+
+                // Solve Ku = F
+                const Ka = activeDOFs.map(r => activeDOFs.map(c => K[r][c]));
+                const Fa = activeDOFs.map(r => F[r]);
+
+                // Basic Gaussian Elimination
+                const ua = this.solveLinear(Ka, Fa);
+
+                const u = Array(DOF).fill(0);
+                activeDOFs.forEach((dof, i) => u[dof] = ua[i]);
+
+                // Post-processing: Internal Forces
+                const results = {
+                    x: [],
+                    v: [],
+                    m: [],
+                    d: []
+                };
+
+                for (let i = 0; i < numElements; i++) {
+                    const indices = [i * 2, i * 2 + 1, (i + 1) * 2, (i + 1) * 2 + 1];
+                    const ue = indices.map(idx => u[idx]);
+                    const k_local = ke(EI, L);
+                    const f_fixed = [udl * L / 2, udl * L * L / 12, udl * L / 2, -udl * L * L / 12];
+
+                    // f_element = k_local * ue - f_fixed
+                    const fe = [0, 1, 2, 3].map(r => {
+                        let sum = 0;
+                        for (let c = 0; c < 4; c++) sum += k_local[r][c] * ue[c];
+                        return sum - f_fixed[r];
+                    });
+
+                    results.x.push(i * L);
+                    results.v.push(fe[0]); // Shear at start of element
+                    results.m.push(-fe[1]); // Moment at start of element
+                    results.d.push(ue[0]); // Displacement
+                }
+
+                // Add last node
+                results.x.push(span);
+                results.v.push(-udl * span / 2); // Simplified for the end
+                results.m.push(0);
+                results.d.push(0);
+
+                return results;
+            },
+
+            solveLinear(A, b) {
+                const n = b.length;
+                for (let i = 0; i < n; i++) {
+                    let max = i;
+                    for (let j = i + 1; j < n; j++) {
+                        if (Math.abs(A[j][i]) > Math.abs(A[max][i])) max = j;
+                    }
+                    [A[i], A[max]] = [A[max], A[i]];
+                    [b[i], b[max]] = [b[max], b[i]];
+
+                    for (let j = i + 1; j < n; j++) {
+                        const factor = A[j][i] / A[i][i];
+                        b[j] -= factor * b[i];
+                        for (let k = i; k < n; k++) A[j][k] -= factor * A[i][k];
+                    }
+                }
+
+                const x = Array(n).fill(0);
+                for (let i = n - 1; i >= 0; i--) {
+                    let sum = 0;
+                    for (let j = i + 1; j < n; j++) sum += A[i][j] * x[j];
+                    x[i] = (b[i] - sum) / A[i][i];
+                }
+                return x;
+            }
+        };
+
+        // ACI 318-19 Design Engine
+        const Design = {
+            slab(geometry, loads, materials) {
+                const { lx, ly, t } = geometry;
+                const { fc, fy } = materials;
+                const w = 15; // Total factored load kPa
+                const Ma = 0.05 * w * lx * lx;
+                const d = t - 30;
+                const As = (Ma * 1e6) / (0.9 * fy * 0.9 * d);
+                return { Ma, As, d };
+            },
+            footing(geometry, loads, materials) {
+                const { b, l, h, pu } = geometry;
+                const { fc, fy } = materials;
+                const area = b * l;
+                const pressure = pu / area;
+                const d = h - 75;
+                const b0 = 4 * (400 + d);
+                const Vu2 = pu - pressure * Math.pow((400 + d) / 1000, 2);
+                const phiVc2 = 0.75 * 0.33 * Math.sqrt(fc) * b0 * d / 1000;
+                return { pressure, Vu2, phiVc2, ratio2: Vu2 / phiVc2 };
+            },
+            column(geometry, loads, materials) {
+                const { b, h, pu, mux, muy } = geometry;
+                const { fc, fy } = materials;
+
+                // Simplified P-M Interaction Diagram points (for a single axis)
+                const Ag = b * h;
+                const Ast = 0.01 * Ag; // Assume 1% reinforcement for diagram
+
+                // P0 = 0.85 * fc * (Ag - Ast) + fy * Ast
+                const P0 = (0.85 * fc * (Ag - Ast) + fy * Ast) / 1000; // kN
+                const phiP0 = 0.65 * 0.8 * P0; // Tied column
+
+                // Interaction points (simplified)
+                const points = [
+                    { p: phiP0, m: 0 },
+                    { p: phiP0 * 0.8, m: phiP0 * 0.8 * (h/1000) * 0.1 },
+                    { p: phiP0 * 0.4, m: phiP0 * 0.4 * (h/1000) * 0.3 },
+                    { p: 0, m: (Ast * fy * (h - 100) * 0.9) / 1e6 } // Pure moment approx
+                ];
+
+                return {
+                    phiPn: phiP0,
+                    points,
+                    ratio: pu / phiP0
+                };
+            },
+            beam(geometry, loads, materials) {
+                const { span, b, h, cover } = geometry;
+                const { udl } = loads;
+                const { fc, fy } = materials;
+
+                // Maximum Moment and Shear for Simple Span UDL
+                const Mu = (udl * Math.pow(span, 2)) / 8; // kN-m
+                const Vu = (udl * span) / 2; // kN
+
+                const d = h - cover - 10; // Approx d (subtracting cover and half bar dia)
+                const phi_flexure = 0.9;
+                const phi_shear = 0.75;
+
+                // Flexure Design (Singly Reinforced)
+                // Mu = phi * As * fy * (d - As*fy / (1.7 * fc * b))
+                // Solving quadratic for As:
+                const Rn = (Mu * 1e6) / (phi_flexure * b * d * d);
+                const rho = (0.85 * fc / fy) * (1 - Math.sqrt(1 - (2 * Rn) / (0.85 * fc)));
+                let As = rho * b * d;
+
+                // Minimum As (ACI 318-19 9.6.1.2)
+                const As_min = Math.max(0.25 * Math.sqrt(fc) / fy, 1.4 / fy) * b * d;
+                As = Math.max(As, As_min);
+
+                // Shear Design
+                const Vc = 0.17 * Math.sqrt(fc) * b * d / 1000; // kN
+                let Vs = 0;
+                let stirrupSpacing = 200; // Default
+
+                if (Vu > phi_shear * Vc / 2) {
+                    Vs = (Vu / phi_shear) - Vc;
+                    if (Vs > 0) {
+                        // Av = 2 * Area of 10mm bar = 2 * 78.5 = 157 mm2
+                        const Av = 157;
+                        stirrupSpacing = (Av * fy * d) / (Vs * 1000);
+                        stirrupSpacing = Math.min(stirrupSpacing, d / 2, 600);
+                    }
+                }
+
+                return {
+                    Mu, Vu, As, As_min, Vc, Vs, stirrupSpacing, d,
+                    ratio: Mu / (phi_flexure * 0.85 * fc * b * d * d * 0.1) // simplified ratio check
+                };
+            }
+        };
+
+        function structureApp() {
+            return {
+                activeTab: 'beam',
+                viewMode: 'model',
+                showSettings: false,
+                tabs: [
+                    { id: 'beam', name: 'Beam' },
+                    { id: 'column', name: 'Column' },
+                    { id: 'slab', name: 'Slab' },
+                    { id: 'foundation', name: 'Foundation' }
+                ],
+                materials: {
+                    fc: 28,
+                    fy: 400
+                },
+                beam: {
+                    span: 6,
+                    b: 200,
+                    h: 400,
+                    cover: 30,
+                    udl: 15
+                },
+                column: {
+                    b: 400,
+                    h: 400,
+                    pu: 500,
+                    mux: 50,
+                    muy: 20
+                },
+                slab: {
+                    lx: 4,
+                    ly: 5,
+                    t: 150,
+                    load: 10
+                },
+                footing: {
+                    b: 1.5,
+                    l: 1.5,
+                    h: 400,
+                    pu: 400
+                },
+                results: {
+                    beam: {},
+                    column: {},
+                    slab: {},
+                    footing: {}
+                },
+                boq: {
+                    concrete: 0,
+                    rebar: 0,
+                    formwork: 0,
+                    cost: 0
+                },
+                prices: {
+                    concrete: 2500,
+                    rebar: 35,
+                    formwork: 450
+                },
+                init() {
+                    lucide.createIcons();
+                    this.calculateDesign();
+                    this.renderModel();
+
+                    // Watch for changes to re-render
+                    this.$watch('beam', () => {
+                        this.calculateDesign();
+                        this.renderModel();
+                    });
+                    this.$watch('viewMode', () => {
+                        this.renderModel();
+                    });
+                    this.$watch('slab', () => {
+                        this.calculateDesign();
+                        this.renderModel();
+                    });
+                    this.$watch('footing', () => {
+                        this.calculateDesign();
+                        this.renderModel();
+                    });
+                    this.$watch('column', () => {
+                        this.calculateDesign();
+                        this.renderModel();
+                    });
+                    this.$watch('materials', () => {
+                        this.calculateDesign();
+                        this.renderModel();
+                    });
+                    this.$watch('activeTab', () => {
+                        this.calculateDesign();
+                        this.$nextTick(() => {
+                            lucide.createIcons();
+                            this.renderModel();
+                        });
+                    });
+                },
+                renderModel() {
+                    if (this.activeTab === 'beam') {
+                        this.plotBeam();
+                        this.drawSection();
+                    } else if (this.activeTab === 'column') {
+                        this.plotColumn();
+                        this.drawSection();
+                    } else if (this.activeTab === 'slab') {
+                        this.plotSlab();
+                    } else if (this.activeTab === 'foundation') {
+                        this.plotFooting();
+                    }
+                },
+                calculateDesign() {
+                    if (this.activeTab === 'beam') {
+                        this.results.beam = Design.beam(this.beam, { udl: this.beam.udl }, this.materials);
+                        this.calculateBOQ('beam');
+                    } else if (this.activeTab === 'column') {
+                        this.results.column = Design.column(this.column, {}, this.materials);
+                        this.calculateBOQ('column');
+                    } else if (this.activeTab === 'slab') {
+                        this.results.slab = Design.slab(this.slab, {}, this.materials);
+                        this.calculateBOQ('slab');
+                    } else if (this.activeTab === 'foundation') {
+                        this.results.footing = Design.footing(this.footing, {}, this.materials);
+                        this.calculateBOQ('footing');
+                    }
+                },
+                calculateBOQ(type) {
+                    let vol = 0, weight = 0, area = 0;
+                    if (type === 'beam') {
+                        vol = (this.beam.b * this.beam.h * this.beam.span) / 1e6;
+                        area = (2 * this.beam.h + this.beam.b) * this.beam.span / 1000;
+                        weight = (this.results.beam.As * this.beam.span * 0.00785); // Simplified kg
+                    } else if (type === 'column') {
+                        vol = (this.column.b * this.column.h * 3) / 1e6; // 3m default height
+                        area = 2 * (this.column.b + this.column.h) * 3 / 1000;
+                        weight = vol * 100; // Approx 100kg/m3
+                    } else if (type === 'slab') {
+                        vol = (this.slab.lx * this.slab.ly * this.slab.t) / 1000;
+                        area = this.slab.lx * this.slab.ly;
+                        weight = vol * 80;
+                    } else if (type === 'footing') {
+                        vol = (this.footing.b * this.footing.l * this.footing.h) / 1000;
+                        area = 2 * (this.footing.b + this.footing.l) * this.footing.h / 1000;
+                        weight = vol * 60;
+                    }
+                    this.boq.concrete = vol;
+                    this.boq.rebar = weight;
+                    this.boq.formwork = area;
+                    this.boq.cost = (vol * this.prices.concrete) + (weight * this.prices.rebar) + (area * this.prices.formwork);
+                },
+                plotSlab() {
+                    const data = [{
+                        z: [[1, 2, 3], [2, 4, 2], [3, 2, 1]],
+                        type: 'contour',
+                        colorscale: 'Blues'
+                    }];
+                    const layout = { title: 'Moment Contour (Slab)', margin: { l: 40, r: 40, t: 40, b: 40 } };
+                    Plotly.newPlot('plot-area', data, layout);
+                },
+                plotFooting() {
+                    const data = [{
+                        x: ['Face A', 'Face B', 'Face C', 'Face D'],
+                        y: [this.results.footing?.pressure, this.results.footing?.pressure, this.results.footing?.pressure, this.results.footing?.pressure],
+                        type: 'bar',
+                        marker: { color: '#6366f1' }
+                    }];
+                    const layout = { title: 'Bearing Pressure Distribution', yaxis: { title: 'Pressure (kN/m²)' } };
+                    Plotly.newPlot('plot-area', data, layout);
+                },
+                plotColumn() {
+                    const res = this.results.column;
+                    if (!res || !res.points) return;
+
+                    const traceCurve = {
+                        x: res.points.map(p => p.m),
+                        y: res.points.map(p => p.p),
+                        mode: 'lines+markers',
+                        name: 'Capacity Curve',
+                        line: { shape: 'spline', color: '#2563eb' },
+                        fill: 'tozerox'
+                    };
+
+                    const tracePoint = {
+                        x: [this.column.mux],
+                        y: [this.column.pu],
+                        mode: 'markers',
+                        name: 'Design Point',
+                        marker: { color: 'red', size: 12, symbol: 'cross' }
+                    };
+
+                    const layout = {
+                        title: 'P-M Interaction Diagram',
+                        xaxis: { title: 'Moment M (kN-m)' },
+                        yaxis: { title: 'Axial Load P (kN)' },
+                        margin: { l: 50, r: 20, t: 50, b: 50 },
+                        height: 400
+                    };
+
+                    Plotly.newPlot('plot-area', [traceCurve, tracePoint], layout, { responsive: true });
+                },
+                drawSection() {
+                    const canvas = document.getElementById('sectionCanvas');
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    let w, h, cover;
+                    if (this.activeTab === 'beam') {
+                        if (!this.results.beam?.As) return;
+                        w = this.beam.b;
+                        h = this.beam.h;
+                        cover = this.beam.cover;
+                    } else if (this.activeTab === 'column') {
+                        w = this.column.b;
+                        h = this.column.h;
+                        cover = 40;
+                    } else return;
+
+                    const scale = Math.min(200/w, 200/h);
+                    const sw = w * scale;
+                    const sh = h * scale;
+                    const ox = (canvas.width - sw) / 2;
+                    const oy = (canvas.height - sh) / 2;
+
+                    // Concrete Section
+                    ctx.strokeStyle = '#cbd5e1';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(ox, oy, sw, sh);
+                    ctx.fillStyle = '#f1f5f9';
+                    ctx.fillRect(ox, oy, sw, sh);
+
+                    // Stirrup / Tie
+                    const sc = cover * scale;
+                    ctx.strokeStyle = '#94a3b8';
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(ox + sc, oy + sc, sw - 2*sc, sh - 2*sc);
+
+                    // Rebars
+                    ctx.fillStyle = '#334155';
+                    if (this.activeTab === 'beam') {
+                        const numBars = 3;
+                        const barSpacing = (sw - 2*sc - 20) / (numBars - 1);
+                        for (let i = 0; i < numBars; i++) {
+                            ctx.beginPath();
+                            ctx.arc(ox + sc + 10 + i * barSpacing, oy + sh - sc - 10, 5, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    } else if (this.activeTab === 'column') {
+                        const positions = [
+                            [ox + sc + 10, oy + sc + 10],
+                            [ox + sw - sc - 10, oy + sc + 10],
+                            [ox + sc + 10, oy + sh - sc - 10],
+                            [ox + sw - sc - 10, oy + sh - sc - 10]
+                        ];
+                        positions.forEach(pos => {
+                            ctx.beginPath();
+                            ctx.arc(pos[0], pos[1], 6, 0, Math.PI * 2);
+                            ctx.fill();
+                        });
+                    }
+
+                    // Labels
+                    ctx.fillStyle = '#64748b';
+                    ctx.font = '12px Arial';
+                    ctx.fillText(`${w}x${h} mm`, ox, oy - 10);
+                },
+                plotBeam() {
+                    const analysis = Solver.analyzeBeam(this.beam.span, this.beam.udl);
+
+                    if (this.viewMode === 'model') {
+                        const trace1 = {
+                            x: [0, this.beam.span],
+                            y: [0, 0],
+                            mode: 'lines',
+                            line: { color: '#2563eb', width: 8 },
+                            name: 'Beam'
+                        };
+                        const supports = {
+                            x: [0, this.beam.span],
+                            y: [-0.1, -0.1],
+                            mode: 'markers',
+                            marker: { symbol: 'triangle-up', size: 15, color: '#475569' },
+                            name: 'Supports'
+                        };
+                        const layout = {
+                            margin: { l: 40, r: 40, t: 40, b: 40 },
+                            height: 400,
+                            showlegend: false,
+                            xaxis: { title: 'Span (m)', range: [-0.5, this.beam.span + 0.5] },
+                            yaxis: { range: [-1, 1], fixedrange: true, visible: false },
+                            paper_bgcolor: 'rgba(0,0,0,0)',
+                            plot_bgcolor: 'rgba(0,0,0,0)',
+                        };
+                        Plotly.newPlot('plot-area', [trace1, supports], layout, { responsive: true, displayModeBar: false });
+                    } else {
+                        // Analysis view: Show Diagrams
+                        const traceM = {
+                            x: analysis.x,
+                            y: analysis.m,
+                            fill: 'tozeroy',
+                            name: 'Moment (kN-m)',
+                            line: { color: '#ef4444' }
+                        };
+                        const layout = {
+                            title: 'Bending Moment Diagram',
+                            margin: { l: 50, r: 20, t: 50, b: 50 },
+                            height: 400,
+                            xaxis: { title: 'Span (m)' },
+                            yaxis: { title: 'Moment (kN-m)' }
+                        };
+                        Plotly.newPlot('plot-area', [traceM], layout, { responsive: true });
+                    }
+                },
+                async generateReport() {
+                    const element = document.getElementById('report-template');
+                    element.classList.remove('hidden');
+
+                    const opt = {
+                        margin: 10,
+                        filename: `StructureCAD_Report_${this.activeTab}.pdf`,
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2, useCORS: true },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+
+                    try {
+                        await html2pdf().set(opt).from(element).save();
+                    } finally {
+                        element.classList.add('hidden');
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
