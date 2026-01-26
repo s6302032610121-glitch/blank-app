@@ -1,1 +1,7 @@
 streamlit
+openai
+anastruct
+plotly
+pandas
+scipy
+numpy

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StructureCAD Web - Simple Beam Analysis</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; padding: 20px; }
+        .container { max-width: 800px; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .result-box { background: #e9ecef; padding: 15px; border-radius: 5px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="mb-4">🏗️ Simple Beam Analysis (Web Version)</h2>
+        <p class="text-muted">A lightweight HTML/JS version of the StructureCAD solver.</p>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Span Length (m)</label>
+                <input type="number" id="span" class="form-control" value="5">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Point Load (kN)</label>
+                <input type="number" id="load" class="form-control" value="10">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Load Position (m)</label>
+                <input type="number" id="pos" class="form-control" value="2.5">
+            </div>
+            <div class="col-12">
+                <button class="btn btn-primary w-100" onclick="analyze()">Analyze Beam</button>
+            </div>
+        </div>
+
+        <div id="results" class="result-box" style="display:none;">
+            <h4>Results:</h4>
+            <p id="ra"></p>
+            <p id="rb"></p>
+            <p id="mmax"></p>
+        </div>
+    </div>
+
+    <script>
+        function analyze() {
+            const L = parseFloat(document.getElementById('span').value);
+            const P = parseFloat(document.getElementById('load').value);
+            const a = parseFloat(document.getElementById('pos').value);
+            const b = L - a;
+
+            if (a > L || a < 0) {
+                alert("Load position must be within the span.");
+                return;
+            }
+
+            // Simple Statics for Point Load on Simply Supported Beam
+            const Ra = (P * b) / L;
+            const Rb = (P * a) / L;
+            const Mmax = (P * a * b) / L;
+
+            document.getElementById('ra').innerText = `Reaction at Left (Ra): ${Ra.toFixed(2)} kN`;
+            document.getElementById('rb').innerText = `Reaction at Right (Rb): ${Rb.toFixed(2)} kN`;
+            document.getElementById('mmax').innerText = `Max Bending Moment: ${Mmax.toFixed(2)} kNm`;
+            document.getElementById('results').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
