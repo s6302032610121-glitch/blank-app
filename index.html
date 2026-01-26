@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StructureCAD AI - ACI 318-19 Professional</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <!-- KaTeX -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+    <!-- html2pdf.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+        body {
+            background-color: #f8fafc;
+            color: #1e293b;
+            font-family: 'Inter', sans-serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .card {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        .input-group label {
+            display: block;
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-bottom: 0.25rem;
+            font-weight: 500;
+        }
+        .input-group input, .input-group select {
+            width: 100%;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            color: #1e293b;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            ring: 2px;
+            ring-color: #3b82f6;
+        }
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+        .tab-active {
+            border-bottom: 2px solid #2563eb;
+            color: #2563eb;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            body { background-color: white; color: black; -webkit-print-color-adjust: exact; }
+            .card { border: 1px solid #e2e8f0; box-shadow: none; }
+            .page-break { page-break-before: always; }
+        }
+    </style>
+</head>
+<body x-data="app()" x-init="init()">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-80 bg-white border-r border-slate-200 flex flex-col overflow-hidden no-print">
+            <div class="p-4 border-b border-slate-200 flex items-center gap-2">
+                <i data-lucide="layout" class="text-blue-600"></i>
+                <h1 class="text-xl font-bold tracking-tight text-slate-900">StructureCAD <span class="text-blue-600 text-xs italic">v2.1</span></h1>
+            </div>
+
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-6">
+                <!-- Mode Switch -->
+                <div class="flex p-1 bg-slate-100 rounded-lg">
+                    <button @click="mode = 'beam'; geometry.b = 300; analyze()" :class="mode === 'beam' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'" class="flex-1 py-1.5 text-xs font-bold rounded-md transition-all">BEAM</button>
+                    <button @click="mode = 'slab'; geometry.b = 1000; analyze()" :class="mode === 'slab' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'" class="flex-1 py-1.5 text-xs font-bold rounded-md transition-all">SLAB</button>
+                </div>
+
+                <!-- Project Info -->
+                <div>
+                    <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Project</h2>
+                    <div class="space-y-2">
+                        <div class="input-group">
+                            <label>Project Name</label>
+                            <input type="text" x-model="project.name">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Geometry Section -->
+                <div>
+                    <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Geometry</h2>
+                    <div class="space-y-4">
+                        <div class="input-group">
+                            <label>Span Length (m)</label>
+                            <input type="number" x-model.number="geometry.span" step="0.1" @input="analyze()">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="input-group">
+                                <label x-text="mode === 'beam' ? 'Width b (mm)' : 'Unit Width (mm)'"></label>
+                                <input type="number" x-model.number="geometry.b" :disabled="mode === 'slab'" @input="analyze()">
+                            </div>
+                            <div class="input-group">
+                                <label x-text="mode === 'beam' ? 'Depth h (mm)' : 'Thickness t (mm)'"></label>
+                                <input type="number" x-model.number="geometry.h" @input="analyze()">
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Concrete Cover (mm)</label>
+                            <input type="number" x-model.number="geometry.cover" @input="analyze()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Materials Section -->
+                <div>
+                    <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Materials</h2>
+                    <div class="space-y-4">
+                        <div class="input-group">
+                            <label>Concrete f'c (MPa)</label>
+                            <select x-model.number="materials.fc" @change="analyze()">
+                                <option value="21">21 MPa (3000 psi)</option>
+                                <option value="24">24 MPa (3500 psi)</option>
+                                <option value="28">28 MPa (4000 psi)</option>
+                                <option value="35">35 MPa (5000 psi)</option>
+                                <option value="42">42 MPa (6000 psi)</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Steel fy (MPa)</label>
+                            <select x-model.number="materials.fy" @change="analyze()">
+                                <option value="280">280 MPa (Grade 40)</option>
+                                <option value="420">420 MPa (Grade 60)</option>
+                                <option value="520">520 MPa (Grade 75)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loads Section -->
+                <div>
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider">Loads</h2>
+                        <button @click="addLoad()" class="text-xs text-blue-600 hover:text-blue-700 font-medium">+ Add Load</button>
+                    </div>
+                    <div class="space-y-3">
+                        <template x-for="(load, index) in loads" :key="index">
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 relative">
+                                <button @click="removeLoad(index)" class="absolute top-2 right-2 text-slate-400 hover:text-red-600">
+                                    <i data-lucide="x" class="w-4 h-4"></i>
+                                </button>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="input-group">
+                                        <label>Category</label>
+                                        <select x-model="load.category" @change="analyze()">
+                                            <option value="D">Dead (D)</option>
+                                            <option value="L">Live (L)</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Type</label>
+                                        <select x-model="load.type" @change="analyze()">
+                                            <option value="point">Point (kN)</option>
+                                            <option value="udl">UDL (kN/m)</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Value</label>
+                                        <input type="number" x-model.number="load.value" @input="analyze()">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Pos (m)</label>
+                                        <input type="number" x-model.number="load.pos" @input="analyze()">
+                                    </div>
+                                    <template x-if="load.type === 'udl'">
+                                        <div class="input-group col-span-2">
+                                            <label>Length (m)</label>
+                                            <input type="number" x-model.number="load.length" @input="analyze()">
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Supports Section -->
+                <div>
+                     <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Supports</h2>
+                     <div class="grid grid-cols-2 gap-2">
+                        <div class="input-group">
+                            <label>Left Support</label>
+                            <select x-model="supports.left" @change="analyze()">
+                                <option value="pinned">Pinned</option>
+                                <option value="fixed">Fixed</option>
+                                <option value="roller">Roller</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Right Support</label>
+                            <select x-model="supports.right" @change="analyze()">
+                                <option value="pinned">Pinned</option>
+                                <option value="fixed">Fixed</option>
+                                <option value="roller">Roller</option>
+                                <option value="free">Free</option>
+                            </select>
+                        </div>
+                     </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-200 bg-slate-50">
+                <button @click="generateReport()" class="w-full btn-primary flex items-center justify-center gap-2">
+                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                    Export PDF Report
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header/Tabs -->
+            <header class="bg-white border-b border-slate-200 px-6 flex justify-between items-center no-print">
+                <nav class="flex gap-8">
+                    <button @click="tab = 'analysis'" :class="tab === 'analysis' ? 'tab-active' : ''" class="py-4 font-medium text-sm transition-colors hover:text-blue-600">Analysis</button>
+                    <button @click="tab = 'design'" :class="tab === 'design' ? 'tab-active' : ''" class="py-4 font-medium text-sm transition-colors hover:text-blue-600">RC Design</button>
+                    <button @click="tab = 'calculations'" :class="tab === 'calculations' ? 'tab-active' : ''" class="py-4 font-medium text-sm transition-colors hover:text-blue-600">Detailed Calcs</button>
+                    <button @click="tab = 'detailing'" :class="tab === 'detailing' ? 'tab-active' : ''" class="py-4 font-medium text-sm transition-colors hover:text-blue-600">Detailing & Cost</button>
+                </nav>
+                <div class="text-right text-[10px] md:text-xs text-slate-500">
+                    <div class="font-bold text-slate-700 uppercase">Prepared by: Mr. Chanachon Saikaew</div>
+                    <div class="font-medium">Faculty of Technical Education | KMUTNB</div>
+                    <div>Civil Engineering Education</div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6" id="report-container">
+
+                <!-- Project Identity (Visible only in report) -->
+                <div class="hidden print:block text-center border-b-2 border-slate-900 pb-6 mb-8">
+                    <h1 class="text-4xl font-bold text-blue-700">StructureCAD AI</h1>
+                    <p class="text-lg text-slate-600">Reinforced Concrete Analysis & Design Suite (ACI 318-19)</p>
+                    <div class="mt-4 grid grid-cols-2 text-left text-sm max-w-2xl mx-auto text-slate-800">
+                        <div><strong>Project:</strong> <span x-text="project.name"></span></div>
+                        <div><strong>Date:</strong> <span x-text="new Date().toLocaleDateString()"></span></div>
+                        <div><strong>Prepared by:</strong> Mr. Chanachon Saikaew</div>
+                        <div><strong>Institution:</strong> KMUTNB</div>
+                    </div>
+                </div>
+
+                <!-- Analysis Tab -->
+                <div x-show="tab === 'analysis' || printing" class="space-y-6">
+                    <div class="card p-4">
+                        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-800">
+                            <i data-lucide="info" class="w-5 h-5 text-indigo-600"></i>
+                            Structural Model (Loading Diagram)
+                        </h3>
+                        <div id="loading-plot" class="w-full h-48 bg-slate-50 rounded"></div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="card p-4">
+                            <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-800">
+                                <i data-lucide="bar-chart-2" class="w-5 h-5 text-blue-600"></i>
+                                Bending Moment Diagram <span x-text="mode === 'slab' ? '(kNm/m)' : '(kNm)'"></span>
+                            </h3>
+                            <div id="bmd-plot" class="w-full h-64 bg-slate-50 rounded"></div>
+                        </div>
+                        <div class="card p-4">
+                            <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-800">
+                                <i data-lucide="bar-chart-2" class="w-5 h-5 text-red-600"></i>
+                                Shear Force Diagram <span x-text="mode === 'slab' ? '(kN/m)' : '(kN)'"></span>
+                            </h3>
+                            <div id="sfd-plot" class="w-full h-64 bg-slate-50 rounded"></div>
+                        </div>
+                    </div>
+                    <div class="card p-4">
+                        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-800">
+                            <i data-lucide="trending-down" class="w-5 h-5 text-green-600"></i>
+                            Deflection Diagram (mm)
+                        </h3>
+                        <div id="deflection-plot" class="w-full h-64 bg-slate-50 rounded"></div>
+                    </div>
+                </div>
+
+                <!-- Design Tab -->
+                <div x-show="tab === 'design' || printing" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="card p-4 border-l-4 border-l-blue-600">
+                            <div class="text-xs text-slate-500 uppercase font-bold">Max Moment $M_u$</div>
+                            <div class="text-xl font-bold text-slate-900" x-text="results.maxMu.toFixed(2) + ' kNm'"></div>
+                        </div>
+                        <div class="card p-4 border-l-4 border-l-red-600">
+                            <div class="text-xs text-slate-500 uppercase font-bold">Max Shear $V_u$</div>
+                            <div class="text-xl font-bold text-slate-900" x-text="results.maxVu.toFixed(2) + ' kN'"></div>
+                        </div>
+                        <div class="card p-4 border-l-4 border-l-green-600">
+                            <div class="text-xs text-slate-500 uppercase font-bold">Flex Capacity $\phi M_n$</div>
+                            <div class="text-xl font-bold" :class="results.phiMn >= results.maxMu ? 'text-green-600' : 'text-red-600'" x-text="results.phiMn.toFixed(2) + ' kNm'"></div>
+                        </div>
+                        <div class="card p-4 border-l-4 border-l-purple-600">
+                            <div class="text-xs text-slate-500 uppercase font-bold">Shear Capacity $\phi V_n$</div>
+                            <div class="text-xl font-bold" :class="results.phiVn >= results.maxVu ? 'text-green-600' : 'text-red-600'" x-text="results.phiVn.toFixed(2) + ' kN'"></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="card p-6">
+                            <h3 class="text-lg font-semibold mb-4 border-b border-slate-100 pb-2 text-slate-800">Reinforcement Results</h3>
+                            <div class="space-y-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-slate-600">Main Reinforcement ($A_s$)</span>
+                                    <span class="font-bold text-lg text-slate-900" x-text="results.asRequired.toFixed(0) + ' mm²'"></span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-slate-600">Reinforcement Ratio ($\rho$)</span>
+                                    <span class="font-mono text-slate-700" x-text="results.rho.toFixed(5)"></span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-slate-600">Bar Selection</span>
+                                    <div class="flex items-center gap-2">
+                                        <select class="bg-white border border-slate-300 rounded p-1 text-sm text-slate-900" x-model.number="design.barDia" @change="analyze()">
+                                            <option value="12">DB12</option>
+                                            <option value="16">DB16</option>
+                                            <option value="20">DB20</option>
+                                            <option value="25">DB25</option>
+                                            <option value="28">DB28</option>
+                                        </select>
+                                        <span class="font-bold text-blue-600" x-text="results.barCount + ' bars'"></span>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-slate-600">Stirrup Spacing</span>
+                                    <span class="font-bold text-red-600" x-text="results.stirrupSpacing + ' mm'"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card p-6 flex flex-col items-center justify-center">
+                            <h3 class="text-lg font-semibold mb-4 self-start text-slate-800">Section Visualization</h3>
+                            <canvas id="sectionCanvas" width="300" height="300" class="bg-slate-50 rounded border border-slate-200"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calculations Tab -->
+                <div x-show="tab === 'calculations' || printing" class="card p-8 space-y-8 prose prose-slate max-w-none" id="calc-content">
+                    <!-- Math content injected here -->
+                </div>
+
+                <!-- Detailing & Cost Tab -->
+                <div x-show="tab === 'detailing' || printing" class="space-y-6">
+                     <div class="card p-6">
+                        <h3 class="text-lg font-semibold mb-4 text-slate-800">Quantity Take-off & Cost Estimation</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead>
+                                    <tr class="border-b border-slate-200 text-slate-500 text-sm uppercase">
+                                        <th class="py-3">Material Description</th>
+                                        <th class="py-3 text-right">Unit</th>
+                                        <th class="py-3 text-right">Quantity</th>
+                                        <th class="py-3 text-right">Unit Rate</th>
+                                        <th class="py-3 text-right">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-sm">
+                                    <tr class="border-b border-slate-100 hover:bg-slate-50">
+                                        <td class="py-3 font-medium text-slate-800">Ready-mixed Concrete (f'c = <span x-text="materials.fc"></span> MPa)</td>
+                                        <td class="py-3 text-right text-slate-500">m³</td>
+                                        <td class="py-3 text-right text-slate-700" x-text="costs.concreteQty.toFixed(3)"></td>
+                                        <td class="py-3 text-right"><input type="number" class="w-24 bg-white border border-slate-300 rounded px-2 py-1 text-right text-slate-900" x-model.number="costs.concretePrice"></td>
+                                        <td class="py-3 text-right font-bold text-slate-900" x-text="(costs.concreteQty * costs.concretePrice).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+                                    </tr>
+                                    <tr class="border-b border-slate-100 hover:bg-slate-50">
+                                        <td class="py-3 font-medium text-slate-800">Deformed Steel Bars (SD40 / fy = <span x-text="materials.fy"></span> MPa)</td>
+                                        <td class="py-3 text-right text-slate-500">kg</td>
+                                        <td class="py-3 text-right text-slate-700" x-text="costs.steelQty.toFixed(1)"></td>
+                                        <td class="py-3 text-right"><input type="number" class="w-24 bg-white border border-slate-300 rounded px-2 py-1 text-right text-slate-900" x-model.number="costs.steelPrice"></td>
+                                        <td class="py-3 text-right font-bold text-slate-900" x-text="(costs.steelQty * costs.steelPrice).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+                                    </tr>
+                                    <tr class="border-b border-slate-100 hover:bg-slate-50">
+                                        <td class="py-3 font-medium text-slate-800">Formwork & Scaffolding</td>
+                                        <td class="py-3 text-right text-slate-500">m²</td>
+                                        <td class="py-3 text-right text-slate-700" x-text="costs.formworkQty.toFixed(2)"></td>
+                                        <td class="py-3 text-right"><input type="number" class="w-24 bg-white border border-slate-300 rounded px-2 py-1 text-right text-slate-900" x-model.number="costs.formworkPrice"></td>
+                                        <td class="py-3 text-right font-bold text-slate-900" x-text="(costs.formworkQty * costs.formworkPrice).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+                                    </tr>
+                                    <tr class="bg-slate-50">
+                                        <td class="py-4 font-bold text-base px-2 text-slate-900">ESTIMATED TOTAL COST</td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td class="py-4 text-right text-xl font-bold text-blue-700 px-2" x-text="'฿ ' + (costs.concreteQty * costs.concretePrice + costs.steelQty * costs.steelPrice + costs.formworkQty * costs.formworkPrice).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                     </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function app() {
+            return {
+                tab: 'analysis',
+                mode: 'beam',
+                printing: false,
+                project: {
+                    name: 'New Project - Beam Analysis',
+                },
+                geometry: {
+                    span: 6,
+                    b: 300,
+                    h: 500,
+                    cover: 40,
+                },
+                materials: {
+                    fc: 28,
+                    fy: 420,
+                    Es: 200000,
+                },
+                design: {
+                    barDia: 20,
+                    stirrupDia: 9,
+                },
+                loads: [
+                    { category: 'D', type: 'udl', value: 15, pos: 0, length: 6 },
+                    { category: 'L', type: 'udl', value: 10, pos: 0, length: 6 }
+                ],
+                supports: {
+                    left: 'fixed',
+                    right: 'pinned'
+                },
+                results: {
+                    maxMu: 0,
+                    maxVu: 0,
+                    phiMn: 0,
+                    phiVn: 0,
+                    asRequired: 0,
+                    rho: 0,
+                    barCount: 0,
+                    stirrupSpacing: 150,
+                },
+                costs: {
+                    concreteQty: 0,
+                    steelQty: 0,
+                    formworkQty: 0,
+                    concretePrice: 2800,
+                    steelPrice: 32,
+                    formworkPrice: 450
+                },
+
+                init() {
+                    lucide.createIcons();
+                    this.analyze();
+                    this.$watch('tab', (val) => {
+                        this.$nextTick(() => {
+                            renderMathInElement(document.body, {
+                                delimiters: [
+                                    {left: '$$', right: '$$', display: true},
+                                    {left: '$', right: '$', display: false}
+                                ]
+                            });
+                            // Force re-render of graphs and canvas when tab changes
+                            this.renderDiagrams();
+                            this.drawCrossSection();
+                            if (val === 'calculations') {
+                                this.drawCrossSection('calcSectionCanvas');
+                            }
+                        });
+                    });
+                    window.addEventListener('resize', () => this.renderDiagrams());
+                },
+
+                addLoad() {
+                    this.loads.push({ category: 'L', type: 'point', value: 10, pos: this.geometry.span / 2 });
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                removeLoad(index) {
+                    this.loads.splice(index, 1);
+                    this.analyze();
+                },
+
+                analyze() {
+                    this.performAnalysis();
+                    this.performRCDesign();
+                    this.drawCrossSection();
+                    this.calculateQuantities();
+                    this.renderDiagrams();
+                    this.generateCalculationReport();
+                },
+
+                performAnalysis() {
+                    const n = 50; // number of elements
+                    const L = this.geometry.span;
+                    const dx = L / n;
+                    const E = 4700 * Math.sqrt(this.materials.fc) * 1e3; // kPa
+                    const I = (this.geometry.b / 1000 * Math.pow(this.geometry.h / 1000, 3)) / 12;
+                    const EI = E * I;
+
+                    const numNodes = n + 1;
+                    const numDOFs = numNodes * 2;
+                    let K = Array.from({ length: numDOFs }, () => new Float64Array(numDOFs));
+                    let F = new Float64Array(numDOFs);
+
+                    // Assemble Global Stiffness Matrix
+                    for (let i = 0; i < n; i++) {
+                        const h = dx;
+                        const k_e = [
+                            [12*EI/h**3, 6*EI/h**2, -12*EI/h**3, 6*EI/h**2],
+                            [6*EI/h**2, 4*EI/h, -6*EI/h**2, 2*EI/h],
+                            [-12*EI/h**3, -6*EI/h**2, 12*EI/h**3, -6*EI/h**2],
+                            [6*EI/h**2, 2*EI/h, -6*EI/h**2, 4*EI/h]
+                        ];
+                        const dofs = [i*2, i*2+1, (i+1)*2, (i+1)*2+1];
+                        for (let r = 0; r < 4; r++) {
+                            for (let c = 0; c < 4; c++) {
+                                K[dofs[r]][dofs[c]] += k_e[r][c];
+                            }
+                        }
+                    }
+
+                    // Apply Loads
+                    this.loads.forEach(l => {
+                        const factor = (l.category === 'D') ? 1.2 : 1.6;
+                        const val = l.value * factor;
+                        if (l.type === 'point') {
+                            const nodeIdx = Math.round(l.pos / dx);
+                            F[nodeIdx * 2] -= val;
+                        } else {
+                            // UDL: simplified nodal loads
+                            for (let i = 0; i < n; i++) {
+                                const start = i * dx;
+                                const end = (i + 1) * dx;
+                                const loadStart = Math.max(start, l.pos);
+                                const loadEnd = Math.min(end, l.pos + l.length);
+                                if (loadEnd > loadStart) {
+                                    const segmentLen = loadEnd - loadStart;
+                                    const segmentVal = val * segmentLen;
+                                    F[i*2] -= segmentVal / 2;
+                                    F[(i+1)*2] -= segmentVal / 2;
+                                }
+                            }
+                        }
+                    });
+
+                    // Boundary Conditions
+                    let fixedDOFs = [];
+                    if (this.supports.left === 'fixed') fixedDOFs.push(0, 1);
+                    else if (this.supports.left === 'pinned' || this.supports.left === 'roller') fixedDOFs.push(0);
+
+                    if (this.supports.right === 'fixed') fixedDOFs.push(numDOFs - 2, numDOFs - 1);
+                    else if (this.supports.right === 'pinned' || this.supports.right === 'roller') fixedDOFs.push(numDOFs - 2);
+
+                    fixedDOFs.forEach(dof => {
+                        for (let j = 0; j < numDOFs; j++) K[dof][j] = 0;
+                        K[dof][dof] = 1;
+                        F[dof] = 0;
+                    });
+
+                    // Solve K*U = F using Gaussian Elimination
+                    const U = this.solveLinearSystem(K, F);
+
+                    // Internal Forces
+                    let x = [], shear = [], moment = [], deflection = [];
+                    for (let i = 0; i <= n; i++) {
+                        x.push(i * dx);
+                        deflection.push(U[i * 2] * 1000); // mm
+
+                        // Calculate M and V from element stiffness
+                        if (i < n) {
+                            const h = dx;
+                            const u_e = [U[i*2], U[i*2+1], U[(i+1)*2], U[(i+1)*2+1]];
+                            const k_e = [
+                                [12*EI/h**3, 6*EI/h**2, -12*EI/h**3, 6*EI/h**2],
+                                [6*EI/h**2, 4*EI/h, -6*EI/h**2, 2*EI/h],
+                                [-12*EI/h**3, -6*EI/h**2, 12*EI/h**3, -6*EI/h**2],
+                                [6*EI/h**2, 2*EI/h, -6*EI/h**2, 4*EI/h]
+                            ];
+                            let f_e = [0, 0, 0, 0];
+                            for (let r = 0; r < 4; r++) {
+                                for (let c = 0; c < 4; c++) f_e[r] += k_e[r][c] * u_e[c];
+                            }
+                            shear.push(-f_e[0]);
+                            moment.push(f_e[1]);
+                        } else {
+                            // Last node
+                            shear.push(shear[n-1]);
+                            moment.push(-moment[n-1]); // Simplified
+                        }
+                    }
+
+                    this.analysisResults = { x, shear, moment, deflection };
+                    this.results.maxMu = Math.max(...moment.map(Math.abs));
+                    this.results.maxVu = Math.max(...shear.map(Math.abs));
+                },
+
+                solveLinearSystem(K, F) {
+                    const n = F.length;
+                    for (let i = 0; i < n; i++) {
+                        let max = Math.abs(K[i][i]);
+                        let maxRow = i;
+                        for (let k = i + 1; k < n; k++) {
+                            if (Math.abs(K[k][i]) > max) {
+                                max = Math.abs(K[k][i]);
+                                maxRow = k;
+                            }
+                        }
+                        [K[i], K[maxRow]] = [K[maxRow], K[i]];
+                        [F[i], F[maxRow]] = [F[maxRow], F[i]];
+
+                        for (let k = i + 1; k < n; k++) {
+                            let c = -K[k][i] / K[i][i];
+                            for (let j = i; j < n; j++) {
+                                if (i === j) K[k][j] = 0;
+                                else K[k][j] += c * K[i][j];
+                            }
+                            F[k] += c * F[i];
+                        }
+                    }
+
+                    const x = new Float64Array(n);
+                    for (let i = n - 1; i >= 0; i--) {
+                        x[i] = F[i] / K[i][i];
+                        for (let k = i - 1; k >= 0; k--) {
+                            F[k] -= K[k][i] * x[i];
+                        }
+                    }
+                    return x;
+                },
+
+                performRCDesign() {
+                    const Mu = this.results.maxMu * 1e6; // Nmm
+                    const Vu = this.results.maxVu * 1000; // N
+                    const b = this.geometry.b;
+                    const h = this.geometry.h;
+                    const fc = this.materials.fc;
+                    const fy = this.materials.fy;
+                    const cover = this.geometry.cover;
+                    const db = this.design.barDia;
+                    const ds = this.design.stirrupDia;
+                    const d = h - cover - ds - (db / 2);
+
+                    // Flexure ACI 318-19 Table 21.2.2
+                    let phi_f = 0.9; // Initially assume tension-controlled
+                    const beta1 = Math.max(0.65, Math.min(0.85, 0.85 - 0.05 * (fc - 28) / 7));
+
+                    const Rn = Mu / (phi_f * b * d * d);
+                    const m = fy / (0.85 * fc);
+                    let rho = (1 / m) * (1 - Math.sqrt(1 - 2 * m * Rn / fy));
+
+                    if (isNaN(rho)) rho = 0.02; // Over-reinforced case handled later
+
+                    // Min Reinforcement
+                    let rhoMin;
+                    if (this.mode === 'beam') {
+                        rhoMin = Math.max(0.25 * Math.sqrt(fc) / fy, 1.4 / fy);
+                    } else {
+                        rhoMin = 0.0018; // ACI 24.4.3.2 for slabs
+                    }
+                    rho = Math.max(rho, rhoMin);
+
+                    const As = rho * b * d;
+                    const barArea = (Math.PI * db * db) / 4;
+                    const count = Math.ceil(As / barArea);
+                    const As_prov = count * barArea;
+
+                    // Verify Phi based on strain
+                    const a = (As_prov * fy) / (0.85 * fc * b);
+                    const c = a / beta1;
+                    const et = 0.003 * (d - c) / c;
+
+                    if (et >= 0.005) phi_f = 0.9;
+                    else if (et <= 0.002) phi_f = 0.65;
+                    else phi_f = 0.65 + (et - 0.002) * (0.25 / 0.003);
+
+                    this.results.rho = rho;
+                    this.results.asRequired = As;
+                    this.results.barCount = count;
+                    this.results.phiMn = (phi_f * As_prov * fy * (d - a/2)) / 1e6;
+                    this.results.phi = phi_f;
+                    this.results.et = et;
+
+                    // Shear ACI 318-19 (Table 22.5.5.1)
+                    const phi_v = 0.75;
+                    const lambda = 1.0;
+                    const Vc = 0.17 * lambda * Math.sqrt(fc) * b * d; // N
+
+                    if (this.mode === 'slab') {
+                        this.results.phiVn = (phi_v * Vc) / 1000;
+                        this.results.stirrupSpacing = 'N/A';
+                    } else {
+                        let Vs = 0;
+                        if (Vu > phi_v * Vc) {
+                            Vs = (Vu / phi_v) - Vc;
+                            const Av = 2 * (Math.PI * ds * ds) / 4;
+                            let s = (Av * fy * d) / Vs;
+                            s = Math.min(s, d / 2, 600);
+                            this.results.stirrupSpacing = Math.max(100, Math.floor(s / 25) * 25);
+                            Vs = (Av * fy * d) / this.results.stirrupSpacing;
+                        } else {
+                            this.results.stirrupSpacing = 'Min (d/2)';
+                            const Av_min = Math.max(0.062 * Math.sqrt(fc) * b * 150 / fy, 0.35 * b * 150 / fy);
+                            Vs = 0;
+                        }
+                        this.results.phiVn = (phi_v * (Vc + Vs)) / 1000;
+                    }
+                },
+
+                calculateQuantities() {
+                    const vol = (this.geometry.b / 1000) * (this.geometry.h / 1000) * this.geometry.span;
+                    this.costs.concreteQty = vol;
+                    this.costs.formworkQty = (this.geometry.b + 2 * this.geometry.h) / 1000 * this.geometry.span;
+
+                    const mainSteelWeight = (this.results.barCount * (Math.PI * Math.pow(this.design.barDia, 2) / 4) / 1e6) * this.geometry.span * 7850;
+                    const stirrupWeight = 0.5 * mainSteelWeight; // Rough estimate
+                    this.costs.steelQty = mainSteelWeight + stirrupWeight;
+                },
+
+                renderLoadingDiagram(config) {
+                    const L = this.geometry.span;
+                    const traces = [];
+                    const annotations = [];
+
+                    // Beam line
+                    traces.push({
+                        x: [0, L], y: [0, 0],
+                        mode: 'lines',
+                        line: { color: '#334155', width: 6 },
+                        showlegend: false,
+                        hoverinfo: 'none'
+                    });
+
+                    // Supports
+                    const addSupport = (x, type) => {
+                        if (type === 'fixed') {
+                            traces.push({
+                                x: [x, x], y: [-0.2, 0.2],
+                                mode: 'lines', line: { color: '#000', width: 4 },
+                                showlegend: false, hoverinfo: 'none'
+                            });
+                            for(let i=-0.2; i<=0.2; i+=0.05) {
+                                traces.push({
+                                    x: [x, x - (x===0 ? 0.1 : -0.1)], y: [i, i+0.05],
+                                    mode: 'lines', line: { color: '#64748b', width: 1 },
+                                    showlegend: false, hoverinfo: 'none'
+                                });
+                            }
+                        } else if (type === 'pinned') {
+                            traces.push({
+                                x: [x-0.1, x, x+0.1, x-0.1], y: [-0.2, 0, -0.2, -0.2],
+                                mode: 'lines', fill: 'toself', fillcolor: '#64748b',
+                                line: { color: '#334155', width: 1 },
+                                showlegend: false, hoverinfo: 'none'
+                            });
+                        } else if (type === 'roller') {
+                            traces.push({
+                                x: [x-0.1, x, x+0.1, x-0.1], y: [-0.15, 0, -0.15, -0.15],
+                                mode: 'lines', line: { color: '#334155', width: 1 },
+                                showlegend: false, hoverinfo: 'none'
+                            });
+                            traces.push({
+                                x: [x-0.1, x+0.1], y: [-0.2, -0.2],
+                                mode: 'lines', line: { color: '#334155', width: 2 },
+                                showlegend: false, hoverinfo: 'none'
+                            });
+                        }
+                    };
+                    addSupport(0, this.supports.left);
+                    addSupport(L, this.supports.right);
+
+                    // Loads
+                    this.loads.forEach(l => {
+                        const factor = (l.category === 'D') ? 1.2 : 1.6;
+                        const val = l.value * factor;
+                        if (l.type === 'point') {
+                            annotations.push({
+                                x: l.pos, y: 0,
+                                ax: 0, ay: -40,
+                                xref: 'x', yref: 'y',
+                                axref: 'pixel', ayref: 'pixel',
+                                showarrow: true,
+                                arrowhead: 2, arrowsize: 1, arrowwidth: 2,
+                                arrowcolor: l.category === 'D' ? '#475569' : '#2563eb',
+                                text: `${l.value} kN (${l.category})`,
+                                font: { size: 10, color: '#1e293b' },
+                                yanchor: 'bottom'
+                            });
+                        } else {
+                            // UDL
+                            traces.push({
+                                x: [l.pos, l.pos + l.length, l.pos + l.length, l.pos, l.pos],
+                                y: [0.1, 0.1, 0.5, 0.5, 0.1],
+                                fill: 'toself',
+                                fillcolor: l.category === 'D' ? 'rgba(71, 85, 105, 0.1)' : 'rgba(37, 99, 235, 0.1)',
+                                line: { color: l.category === 'D' ? '#475569' : '#2563eb', width: 1, dash: 'dot' },
+                                showlegend: false,
+                                hoverinfo: 'none'
+                            });
+                            annotations.push({
+                                x: l.pos + l.length/2, y: 0.5,
+                                text: `${l.value} kN/m (${l.category})`,
+                                showarrow: false,
+                                font: { size: 10, color: '#1e293b' },
+                                yanchor: 'bottom'
+                            });
+                        }
+                    });
+
+                    const layout = {
+                        height: 180,
+                        margin: { t: 40, b: 20, l: 40, r: 40 },
+                        xaxis: { range: [-0.5, L + 0.5], showgrid: false, zeroline: false },
+                        yaxis: { range: [-0.5, 1.5], showgrid: false, zeroline: false, showticklabels: false },
+                        annotations: annotations,
+                        paper_bgcolor: 'rgba(0,0,0,0)',
+                        plot_bgcolor: 'rgba(0,0,0,0)',
+                        template: 'plotly_white'
+                    };
+
+                    Plotly.newPlot('loading-plot', traces, layout, config);
+                },
+
+                renderDiagrams() {
+                    const config = { responsive: true, displayModeBar: false };
+                    this.renderLoadingDiagram(config);
+                    const commonLayout = {
+                        paper_bgcolor: 'rgba(0,0,0,0)',
+                        plot_bgcolor: 'rgba(0,0,0,0)',
+                        font: { color: '#1e293b', family: 'Inter, sans-serif' },
+                        margin: { t: 30, b: 40, l: 60, r: 20 },
+                        xaxis: {
+                            gridcolor: '#e2e8f0',
+                            zerolinecolor: '#cbd5e1',
+                            title: { text: 'Span (m)', font: { size: 10 } }
+                        },
+                        yaxis: {
+                            gridcolor: '#e2e8f0',
+                            zerolinecolor: '#cbd5e1',
+                            title: { font: { size: 10 } }
+                        },
+                        hovermode: 'x unified',
+                        template: 'plotly_white'
+                    };
+
+                    // BMD
+                    const bmdLayout = JSON.parse(JSON.stringify(commonLayout));
+                    bmdLayout.yaxis.title.text = 'Moment (kNm)';
+                    Plotly.newPlot('bmd-plot', [{
+                        x: this.analysisResults.x,
+                        y: this.analysisResults.moment,
+                        fill: 'tozeroy',
+                        name: 'Moment',
+                        line: { color: '#2563eb', shape: 'spline' },
+                        fillcolor: 'rgba(37, 99, 235, 0.1)'
+                    }], bmdLayout, config);
+
+                    // SFD
+                    const sfdLayout = JSON.parse(JSON.stringify(commonLayout));
+                    sfdLayout.yaxis.title.text = 'Shear (kN)';
+                    Plotly.newPlot('sfd-plot', [{
+                        x: this.analysisResults.x,
+                        y: this.analysisResults.shear,
+                        fill: 'tozeroy',
+                        name: 'Shear',
+                        line: { color: '#dc2626', shape: 'hv' },
+                        fillcolor: 'rgba(220, 38, 38, 0.1)'
+                    }], sfdLayout, config);
+
+                    // Deflection
+                    const defLayout = JSON.parse(JSON.stringify(commonLayout));
+                    defLayout.yaxis.title.text = 'Deflection (mm)';
+                    Plotly.newPlot('deflection-plot', [{
+                        x: this.analysisResults.x,
+                        y: this.analysisResults.deflection,
+                        name: 'Deflection',
+                        line: { color: '#16a34a', width: 3 }
+                    }], defLayout, config);
+                },
+
+                drawCrossSection(canvasId = 'sectionCanvas') {
+                    const canvas = document.getElementById(canvasId);
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, 300, 300);
+
+                    // Center and scale
+                    let bw_real = this.geometry.b;
+                    let bh_real = this.geometry.h;
+
+                    // For slab, we might want to show a 1m width but maybe zoomed in if it's too thin
+                    const aspectRatio = bw_real / bh_real;
+                    let scale;
+                    if (aspectRatio > 3) {
+                        // Very wide (slab)
+                        scale = 260 / bw_real;
+                    } else {
+                        scale = 220 / Math.max(bw_real, bh_real);
+                    }
+
+                    const bw = bw_real * scale;
+                    const bh = bh_real * scale;
+                    const ox = (300 - bw) / 2;
+                    const oy = (300 - bh) / 2;
+
+                    // Concrete Section
+                    ctx.fillStyle = '#f1f5f9';
+                    ctx.shadowBlur = 4;
+                    ctx.shadowColor = 'rgba(0,0,0,0.1)';
+                    ctx.fillRect(ox, oy, bw, bh);
+                    ctx.shadowBlur = 0;
+                    ctx.strokeStyle = '#334155';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(ox, oy, bw, bh);
+
+                    // Dimensions
+                    ctx.fillStyle = '#64748b';
+                    ctx.font = 'bold 10px Inter';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${this.geometry.b} mm`, 150, oy - 10);
+                    ctx.save();
+                    ctx.translate(ox - 15, 150);
+                    ctx.rotate(-Math.PI/2);
+                    ctx.fillText(`${this.geometry.h} mm`, 0, 0);
+                    ctx.restore();
+
+                    // Rebars (Main Bottom)
+                    ctx.fillStyle = '#2563eb';
+                    const r = Math.max(3, (this.design.barDia * scale) / 2);
+                    const cover = this.geometry.cover * scale;
+                    const ds = this.design.stirrupDia * scale;
+
+                    if (this.results.barCount > 0) {
+                        const effectiveW = bw - 2 * (cover + ds);
+                        const spacing = this.results.barCount > 1 ? effectiveW / (this.results.barCount - 1) : 0;
+                        const startX = ox + cover + ds;
+                        const barY = oy + bh - cover - ds;
+
+                        for (let i = 0; i < this.results.barCount; i++) {
+                            const x = startX + (this.results.barCount === 1 ? effectiveW/2 : i * spacing);
+                            ctx.beginPath();
+                            ctx.arc(x, barY, r, 0, Math.PI * 2);
+                            ctx.fill();
+                            // Reflection
+                            ctx.fillStyle = 'white';
+                            ctx.beginPath();
+                            ctx.arc(x - r/3, barY - r/3, r/4, 0, Math.PI * 2);
+                            ctx.fill();
+                            ctx.fillStyle = '#2563eb';
+                        }
+                    }
+
+                    // Top Bars (Hangers/Compression)
+                    ctx.fillStyle = '#94a3b8';
+                    const tr = r * 0.8;
+                    ctx.beginPath();
+                    ctx.arc(ox + cover + ds, oy + cover + ds, tr, 0, Math.PI * 2);
+                    ctx.arc(ox + bw - (cover + ds), oy + cover + ds, tr, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Stirrup
+                    if (this.mode === 'beam') {
+                        ctx.strokeStyle = '#dc2626';
+                        ctx.lineWidth = Math.max(1, ds);
+                        ctx.setLineDash([]);
+                        ctx.beginPath();
+                        ctx.roundRect(ox + cover/2, oy + cover/2, bw - cover, bh - cover, 5);
+                        ctx.stroke();
+                    }
+                },
+
+                generateCalculationReport() {
+                    this.$nextTick(() => {
+                        this.drawCrossSection('calcSectionCanvas');
+                    });
+                    const calcContent = document.getElementById('calc-content');
+                    if (!calcContent) return;
+
+                    const d = this.geometry.h - this.geometry.cover - this.design.stirrupDia - (this.design.barDia / 2);
+                    const beta1 = Math.max(0.65, Math.min(0.85, 0.85 - 0.05 * (this.materials.fc - 28) / 7));
+                    const As_prov = this.results.barCount * Math.PI * Math.pow(this.design.barDia, 2) / 4;
+                    const a = (As_prov * this.materials.fy) / (0.85 * this.materials.fc * this.geometry.b);
+                    const c = a / beta1;
+
+                    calcContent.innerHTML = `
+                        <h2 class="text-3xl font-bold text-blue-700 mb-6">Detailed Engineering Report</h2>
+
+                        <div class="space-y-8">
+                            <section class="flex flex-col md:flex-row gap-6 items-center border-b border-slate-200 pb-6">
+                                <div class="flex-1">
+                                    <h3 class="text-xl font-bold mb-2 text-slate-800">Project Identification</h3>
+                                    <div class="grid grid-cols-1 gap-1 text-sm text-slate-600">
+                                        <p><strong>Project Name:</strong> ${this.project.name}</p>
+                                        <p><strong>Mode:</strong> ${this.mode.toUpperCase()}</p>
+                                        <p><strong>Standard:</strong> ACI 318-19</p>
+                                        <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+                                    </div>
+                                </div>
+                                <div class="w-64 h-64 bg-white flex flex-col items-center justify-center border border-slate-100 rounded shadow-sm">
+                                    <span class="text-[10px] text-slate-400 mb-1 font-bold uppercase">Section Detail</span>
+                                    <canvas id="calcSectionCanvas" width="300" height="300" style="width: 240px; height: 240px;"></canvas>
+                                </div>
+                            </section>
+
+                            <section>
+                                <h3 class="text-xl font-bold border-b border-slate-200 pb-2 mb-4 text-slate-800">1. Structural Analysis Results</h3>
+                                <div class="grid grid-cols-2 gap-4 text-slate-700">
+                                    <p>Max Factored Moment ($M_u$): <strong>${this.results.maxMu.toFixed(2)} kNm</strong></p>
+                                    <p>Max Factored Shear ($V_u$): <strong>${this.results.maxVu.toFixed(2)} kN</strong></p>
+                                    <p>Span Length ($L$): ${this.geometry.span} m</p>
+                                    <p>Section: ${this.geometry.b}x${this.geometry.h} mm</p>
+                                </div>
+                            </section>
+
+                            <section>
+                                <h3 class="text-xl font-bold border-b border-slate-200 pb-2 mb-4 text-slate-800">2. Flexural Design (ACI 318-19)</h3>
+                                <div class="text-slate-700">
+                                    <p class="mb-2">Effective depth ($d$): $h - cover - d_{stirrup} - d_{bar}/2 = ${d.toFixed(1)} \\text{ mm}$</p>
+                                    <p class="mb-2">Coefficient $\\beta_1$: $0.85 - 0.05(f'_c - 28)/7 = ${beta1.toFixed(3)}$</p>
+                                </div>
+
+                                <div class="bg-slate-50 p-6 rounded-lg border border-slate-200 space-y-2 font-mono text-sm text-slate-800">
+                                    <div>$$ R_n = M_u / (\\phi b d^2) = ${(this.results.maxMu*1e6/(0.9*this.geometry.b*d*d)).toFixed(4)} \\text{ MPa} $$</div>
+                                    <div>$$ \\rho_{req} = ${this.results.rho.toFixed(6)} $$</div>
+                                    <div>$$ A_{s,req} = \\rho b d = ${this.results.asRequired.toFixed(1)} \\text{ mm}^2 $$</div>
+                                </div>
+
+                                <p class="mt-4 text-slate-800">Provided Reinforcement: <strong>${this.results.barCount} - DB${this.design.barDia}</strong> ($A_{s,prov} = ${As_prov.toFixed(1)} \\text{ mm}^2$)</p>
+
+                                <h4 class="font-bold mt-4 text-slate-800">Strain Check & $\\phi$ Verification:</h4>
+                                <ul class="list-disc ml-6 space-y-1 text-sm text-slate-700">
+                                    <li>Compression block depth ($a$): $a = \\frac{A_{s,prov} f_y}{0.85 f'_c b} = ${a.toFixed(2)} \\text{ mm}$</li>
+                                    <li>Neutral axis depth ($c$): $c = a / \\beta_1 = ${c.toFixed(2)} \\text{ mm}$</li>
+                                    <li>Net tensile strain ($\\epsilon_t$): $\\epsilon_t = 0.003 \\frac{d-c}{c} = ${this.results.et.toFixed(5)}$</li>
+                                    <li>Strength reduction factor ($\\phi$): <strong>${this.results.phi.toFixed(3)}</strong></li>
+                                </ul>
+
+                                <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-900">
+                                    Design Moment Capacity: $\\phi M_n = \\phi A_{s,prov} f_y (d - a/2) = \\mathbf{${this.results.phiMn.toFixed(2)} \\text{ kNm}}$
+                                </div>
+                            </section>
+
+                            <section>
+                                <h3 class="text-xl font-bold border-b border-slate-200 pb-2 mb-4 text-slate-800">3. Shear Design (ACI 318-19)</h3>
+                                <div class="text-slate-700">
+                                    <p>Concrete Capacity: $\\phi V_c = \\phi 0.17 \\sqrt{f'_c} b d = ${(0.75*0.17*Math.sqrt(this.materials.fc)*this.geometry.b*d/1000).toFixed(2)} \\text{ kN}$</p>
+                                    ${this.mode === 'beam' ? `
+                                        <p>Required Shear Strength ($V_s$): ${(this.results.maxVu/0.75 - 0.17*Math.sqrt(this.materials.fc)*this.geometry.b*d/1000).toFixed(2)} \\text{ kN}</p>
+                                        <p>Stirrup Selection: 2 - RB${this.design.stirrupDia} @ ${this.results.stirrupSpacing} mm</p>
+                                    ` : `<p>Slab Shear: OK (No stirrups required for one-way slab shear if $V_u < \\phi V_c$)</p>`}
+                                </div>
+
+                                <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-900">
+                                    Design Shear Capacity: $\\phi V_n = \\mathbf{${this.results.phiVn.toFixed(2)} \\text{ kN}}$
+                                </div>
+                            </section>
+                        </div>
+                    `;
+                    this.$nextTick(() => {
+                        renderMathInElement(calcContent, {
+                            delimiters: [
+                                {left: '$$', right: '$$', display: true},
+                                {left: '$', right: '$', display: false}
+                            ]
+                        });
+                    });
+                },
+
+                async generateReport() {
+                    this.printing = true;
+                    const prevTab = this.tab;
+
+                    // Force all charts and calculations to render
+                    this.analyze();
+
+                    // Give time for UI to update
+                    await new Promise(r => setTimeout(r, 800));
+
+                    const element = document.getElementById('report-container');
+                    const opt = {
+                        margin: [10, 10, 10, 10],
+                        filename: `StructureCAD_${this.project.name.replace(/\s+/g, '_') || 'Report'}.pdf`,
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: {
+                            scale: 2,
+                            useCORS: true,
+                            backgroundColor: '#ffffff',
+                            logging: false
+                        },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                        pagebreak: { mode: ['avoid-all', 'css', 'legacy'], before: '.page-break' }
+                    };
+
+                    try {
+                        await html2pdf().set(opt).from(element).save();
+                    } finally {
+                        this.printing = false;
+                        this.tab = prevTab;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
