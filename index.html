@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StructureCAD AI - Professional Structural Toolkit</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <style>
+        [x-cloak] { display: none !important; }
+        body { font-family: 'Inter', sans-serif; }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; }
+            .print-only { display: block !important; }
+            .shadow-sm, .shadow-lg, .shadow-xl, .shadow-2xl { shadow: none !important; border: 1px solid #eee; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-900" x-data="app()" x-init="init()">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50 no-print">
+        <div class="flex items-center gap-2">
+            <div class="bg-blue-600 text-white p-2 rounded-lg">
+                <i data-lucide="building-2"></i>
+            </div>
+            <h1 class="text-xl font-black tracking-tight">StructureCAD AI</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <button onclick="window.print()" class="hidden md:flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[10px] font-black border border-slate-200 uppercase tracking-widest transition">
+                <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                Print Report
+            </button>
+            <div class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-[10px] font-black border border-green-100 uppercase tracking-widest">
+                <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                v2.1 Stable
+            </div>
+            <button @click="showSettings = true" class="p-2 hover:bg-slate-100 rounded-full text-slate-600 transition">
+                <i data-lucide="settings"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+        <!-- Sidebar Navigation -->
+        <aside class="lg:col-span-1 space-y-4 no-print">
+            <nav class="flex flex-col gap-1">
+                <template x-for="tab in tabs" :key="tab.id">
+                    <button @click="activeTab = tab.id"
+                            :class="activeTab === tab.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'hover:bg-white text-slate-600 hover:text-slate-900'"
+                            class="flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition duration-300 text-sm">
+                        <i :data-lucide="tab.icon" class="w-5 h-5"></i>
+                        <span x-text="tab.name"></span>
+                        <template x-if="activeTab === tab.id">
+                            <i data-lucide="arrow-right" class="w-4 h-4 ml-auto"></i>
+                        </template>
+                    </button>
+                </template>
+            </nav>
+
+            <div class="mt-4 p-6 bg-slate-900 rounded-[32px] text-white shadow-xl">
+                <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center mb-4">
+                    <i data-lucide="sparkles" class="w-5 h-5 text-white"></i>
+                </div>
+                <h3 class="font-bold text-lg mb-2">AI Assistant</h3>
+                <p class="text-[11px] text-slate-400 leading-relaxed mb-6">
+                    Professional structural analysis and design advice at your fingertips.
+                </p>
+                <button @click="activeTab = 'chat'" class="w-full bg-white text-slate-900 py-3 rounded-xl text-xs font-black transition hover:bg-blue-50 uppercase tracking-widest">
+                    Start Chat
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <section class="lg:col-span-3 space-y-6">
+
+            <!-- AI Assistant Tab -->
+            <div x-show="activeTab === 'chat'" x-cloak class="bg-white rounded-[32px] shadow-sm border border-slate-200 flex flex-col h-[750px] overflow-hidden animate-fade-in no-print">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-white/50 backdrop-blur-md sticky top-0 z-10">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-100">
+                            <i data-lucide="bot"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-black text-slate-800 tracking-tight text-lg">Structural Expert</h2>
+                            <div class="flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                                <p class="text-[9px] text-slate-400 font-black uppercase tracking-widest">Online Assistant</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/20 no-scrollbar" id="chat-messages">
+                    <template x-for="msg in messages">
+                        <div :class="msg.role === 'user' ? 'justify-end' : 'justify-start'" class="flex">
+                            <div :class="msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none shadow-xl shadow-blue-100' : 'bg-white text-slate-800 rounded-bl-none border border-slate-100'"
+                                 class="max-w-[80%] p-5 rounded-[24px] text-sm leading-relaxed shadow-sm whitespace-pre-wrap font-medium"
+                                 x-text="msg.content">
+                            </div>
+                        </div>
+                    </template>
+                    <div x-show="loadingChat" class="flex justify-start">
+                        <div class="bg-white p-5 rounded-[24px] rounded-bl-none shadow-sm flex gap-2 border border-slate-50">
+                            <span class="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></span>
+                            <span class="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                            <span class="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6 bg-white border-t border-slate-100">
+                    <div class="flex gap-3 bg-slate-50 p-2.5 rounded-[24px] border border-slate-100 focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all">
+                        <input type="text" x-model="chatInput" @keyup.enter="sendMessage()" placeholder="Ask about structural codes, formulas, or this tool..."
+                               class="flex-1 px-4 py-3 bg-transparent border-none rounded-xl focus:ring-0 transition outline-none text-sm font-medium">
+                        <button @click="sendMessage()" class="bg-blue-600 text-white p-4 rounded-[20px] hover:bg-blue-700 transition shadow-lg shadow-blue-100 active:scale-95">
+                            <i data-lucide="send" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Beam Analysis Tab -->
+            <div x-show="activeTab === 'beam'" x-cloak class="space-y-6 animate-fade-in">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Inputs -->
+                    <div class="lg:col-span-4 space-y-6 no-print">
+                        <div class="bg-white p-8 rounded-[40px] shadow-sm border border-slate-200 space-y-8">
+                            <div>
+                                <h3 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+                                    <i data-lucide="cog" class="w-5 h-5 text-blue-500"></i>
+                                    Beam Geometry
+                                </h3>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Total Span (m)</label>
+                                <div class="relative group">
+                                    <input type="number" x-model.number="beam.span" class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition font-black text-xl text-blue-600">
+                                    <span class="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold group-focus-within:text-blue-500 transition">m</span>
+                                </div>
+                            </div>
+
+                            <hr class="border-slate-50">
+
+                            <div class="space-y-5">
+                                <h4 class="text-xs font-black text-slate-800 flex items-center justify-between uppercase tracking-widest">
+                                    Supports
+                                    <span class="bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full text-[10px]" x-text="supports.length"></span>
+                                </h4>
+                                <div class="grid grid-cols-12 gap-2">
+                                    <select x-model="newSupport.type" class="col-span-6 text-xs font-bold bg-slate-50 border border-slate-100 rounded-xl p-3.5 outline-none focus:border-blue-500 transition">
+                                        <option value="Pin">Pin (Hinged)</option>
+                                        <option value="Roller">Roller</option>
+                                        <option value="Fixed">Fixed</option>
+                                    </select>
+                                    <input type="number" x-model.number="newSupport.pos" placeholder="Support Pos" class="col-span-4 text-xs font-bold bg-slate-50 border border-slate-100 rounded-xl p-3.5 outline-none focus:border-blue-500 transition">
+                                    <button @click="addSupport()" aria-label="Add Support" class="col-span-2 bg-slate-800 text-white rounded-xl hover:bg-black transition flex items-center justify-center">
+                                        <i data-lucide="plus" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                                <div class="flex flex-wrap gap-2 min-h-[40px]">
+                                    <template x-for="(s, i) in supports" :key="i">
+                                        <div class="flex items-center gap-2 bg-blue-50 text-blue-600 px-3 py-2 rounded-xl text-[10px] font-black border border-blue-100 animate-fade-in">
+                                            <span x-text="s.type + ' @ ' + s.pos + 'm'"></span>
+                                            <button @click="removeSupport(i)" class="hover:text-red-500 transition"><i data-lucide="x" class="w-3 h-3"></i></button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <div class="space-y-5">
+                                <h4 class="text-xs font-black text-slate-800 flex items-center justify-between uppercase tracking-widest">
+                                    Loads
+                                    <span class="bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full text-[10px]" x-text="loads.length"></span>
+                                </h4>
+                                <div class="space-y-3">
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <select x-model="newLoad.type" class="text-xs font-bold bg-slate-50 border border-slate-100 rounded-xl p-3.5 outline-none focus:border-blue-500 transition">
+                                            <option value="Point">Point Load</option>
+                                            <option value="UDL">UDL (Uniform)</option>
+                                        </select>
+                                        <input type="number" x-model.number="newLoad.val" placeholder="kN or kN/m" class="text-xs font-bold bg-slate-50 border border-slate-100 rounded-xl p-3.5 outline-none focus:border-blue-500 transition">
+                                    </div>
+                                    <div class="grid grid-cols-12 gap-2">
+                                        <input type="number" x-model.number="newLoad.pos" placeholder="Load Pos" :class="newLoad.type === 'UDL' ? 'col-span-5' : 'col-span-10'" class="text-xs font-bold bg-slate-50 border border-slate-100 rounded-xl p-3.5 outline-none focus:border-blue-500 transition">
+                                        <template x-if="newLoad.type === 'UDL'">
+                                            <input type="number" x-model.number="newLoad.end" placeholder="End" class="col-span-5 text-xs font-bold bg-slate-50 border border-slate-100 rounded-xl p-3.5 outline-none focus:border-blue-500 transition">
+                                        </template>
+                                        <button @click="addLoad()" aria-label="Add Load" class="col-span-2 bg-slate-800 text-white rounded-xl hover:bg-black transition flex items-center justify-center">
+                                            <i data-lucide="plus" class="w-4 h-4"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="space-y-2 min-h-[40px]">
+                                    <template x-for="(l, i) in loads" :key="i">
+                                        <div class="flex items-center justify-between bg-red-50 text-red-600 px-4 py-3 rounded-2xl text-[10px] font-black border border-red-100 animate-fade-in">
+                                            <span x-text="l.type + ': ' + l.val + (l.type === 'UDL' ? 'kN/m' : 'kN') + ' @ ' + l.pos + 'm' + (l.type === 'UDL' ? ' → ' + l.end + 'm' : '')"></span>
+                                            <button @click="removeLoad(i)" class="hover:text-red-900"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <button @click="solveBeam()" class="bg-blue-600 text-white py-4 rounded-[20px] font-black text-xs shadow-xl shadow-blue-100 hover:bg-blue-700 transition uppercase tracking-widest">
+                                    Analyze
+                                </button>
+                                <button @click="supports=[]; loads=[]; solveBeam();" class="bg-slate-100 text-slate-500 py-4 rounded-[20px] font-black text-xs hover:bg-red-50 hover:text-red-500 transition uppercase tracking-widest">
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results -->
+                    <div class="lg:col-span-8 space-y-6">
+                        <div class="bg-white p-6 rounded-[40px] shadow-sm border border-slate-200 overflow-hidden">
+                            <div id="shearPlot" class="w-full h-80"></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-[40px] shadow-sm border border-slate-200 overflow-hidden">
+                            <div id="momentPlot" class="w-full h-80"></div>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="bg-white p-6 rounded-[32px] shadow-sm border border-slate-200 hover:border-blue-200 transition">
+                                <p class="text-[9px] text-slate-400 uppercase font-black mb-2 tracking-widest">Max Shear</p>
+                                <p class="text-2xl font-black text-slate-800" x-text="beamResults.maxShear + ' kN'"></p>
+                            </div>
+                            <div class="bg-white p-6 rounded-[32px] shadow-sm border border-slate-200 hover:border-blue-200 transition">
+                                <p class="text-[9px] text-slate-400 uppercase font-black mb-2 tracking-widest">Max Moment</p>
+                                <p class="text-2xl font-black text-slate-800" x-text="beamResults.maxMoment + ' kNm'"></p>
+                            </div>
+                            <template x-for="(react, idx) in beamResults.reactions">
+                                <div class="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-[32px] shadow-xl shadow-blue-100 text-white animate-fade-in">
+                                    <p class="text-[9px] text-blue-200 uppercase font-black mb-2 tracking-widest" x-text="'Support Reaction R' + (idx+1)"></p>
+                                    <div class="flex items-baseline gap-1">
+                                        <p class="text-2xl font-black" x-text="react.val"></p>
+                                        <span class="text-xs text-blue-200 font-bold">kN</span>
+                                    </div>
+                                    <p class="text-[10px] text-blue-100/60 font-black mt-1 uppercase" x-text="'At ' + react.pos + 'm'"></p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Truss Analysis Tab -->
+            <div x-show="activeTab === 'truss'" x-cloak class="space-y-6 animate-fade-in">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Inputs -->
+                    <div class="lg:col-span-4 space-y-6 no-print">
+                        <div class="bg-white p-8 rounded-[40px] shadow-sm border border-slate-200 space-y-8">
+                            <div class="space-y-4">
+                                <h3 class="text-xl font-black text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="plus-circle" class="w-5 h-5 text-indigo-500"></i>
+                                    Truss Definition
+                                </h3>
+
+                                <div class="space-y-4">
+                                    <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Add Node</h4>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <input type="number" x-model.number="newNode.x" placeholder="X Coord" class="text-xs font-bold bg-slate-50 border border-slate-100 rounded-xl p-3.5 outline-none focus:border-blue-500 transition">
+                                        <input type="number" x-model.number="newNode.y" placeholder="Y Coord" class="text-xs font-bold bg-slate-50 border border-slate-100 rounded-xl p-3.5 outline-none focus:border-blue-500 transition">
+                                    </div>
+                                    <button @click="addNode()" aria-label="Add Truss Node" class="w-full bg-slate-800 text-white py-3 rounded-xl text-xs font-black hover:bg-black transition uppercase">Add Node</button>
+                                </div>
+
+                                <hr class="border-slate-50">
+
+                                <div class="space-y-4">
+                                    <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Add Member</h4>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <select x-model.number="newMember.n1" class="text-xs font-bold bg-slate-50 border border-slate-100 rounded-xl p-3.5 outline-none focus:border-blue-500 transition">
+                                            <template x-for="(n, i) in trussNodes" :key="i">
+                                                <option :value="i" x-text="'Node ' + i"></option>
+                                            </template>
+                                        </select>
+                                        <select x-model.number="newMember.n2" class="text-xs font-bold bg-slate-50 border border-slate-100 rounded-xl p-3.5 outline-none focus:border-blue-500 transition">
+                                            <template x-for="(n, i) in trussNodes" :key="i">
+                                                <option :value="i" x-text="'Node ' + i"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                    <button @click="addMember()" aria-label="Add Truss Member" class="w-full bg-slate-800 text-white py-3 rounded-xl text-xs font-black hover:bg-black transition uppercase">Add Member</button>
+                                </div>
+
+                                <hr class="border-slate-50">
+
+                                <div class="space-y-4">
+                                    <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Node Setup (Load/Support)</h4>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <select x-model.number="trussNodeId" class="text-xs font-bold bg-slate-50 border border-slate-100 rounded-xl p-3.5 outline-none focus:border-blue-500 transition">
+                                            <template x-for="(n, i) in trussNodes" :key="i">
+                                                <option :value="i" x-text="'Node ' + i"></option>
+                                            </template>
+                                        </select>
+                                        <select x-model="trussSupport" class="text-xs font-bold bg-slate-50 border border-slate-100 rounded-xl p-3.5 outline-none focus:border-blue-500 transition">
+                                            <option value="None">No Support</option>
+                                            <option value="Pin">Pin</option>
+                                            <option value="Roller">Roller (X)</option>
+                                        </select>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <input type="number" x-model.number="trussFx" placeholder="Fx" class="text-xs font-bold bg-slate-50 border border-slate-100 rounded-xl p-3.5 outline-none focus:border-blue-500 transition">
+                                        <input type="number" x-model.number="trussFy" placeholder="Fy" class="text-xs font-bold bg-slate-50 border border-slate-100 rounded-xl p-3.5 outline-none focus:border-blue-500 transition">
+                                    </div>
+                                    <button @click="updateTrussNode()" class="w-full bg-slate-800 text-white py-3 rounded-xl text-xs font-black hover:bg-black transition uppercase">Apply to Node</button>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <button @click="solveTruss()" class="bg-indigo-600 text-white py-4 rounded-[20px] font-black text-xs shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition uppercase tracking-widest">
+                                    Solve
+                                </button>
+                                <button @click="resetTruss()" class="bg-slate-100 text-slate-500 py-4 rounded-[20px] font-black text-xs hover:bg-red-50 hover:text-red-500 transition uppercase tracking-widest">
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-8 space-y-6">
+                        <div class="bg-white p-6 rounded-[40px] shadow-sm border border-slate-200 overflow-hidden">
+                            <div id="trussPlot" class="w-full h-[600px]"></div>
+                        </div>
+                        <div class="bg-white p-8 rounded-[32px] shadow-sm border border-slate-200">
+                            <h3 class="font-black text-slate-800 mb-6 flex items-center gap-2">
+                                <i data-lucide="list" class="w-4 h-4 text-indigo-500"></i>
+                                Results Summary
+                            </h3>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+                                <div class="p-5 bg-slate-50 rounded-3xl">
+                                    <p class="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-2">Max Tension</p>
+                                    <p class="text-xl font-black text-blue-600" x-text="trussResults.maxTension + ' kN'"></p>
+                                </div>
+                                <div class="p-5 bg-slate-50 rounded-3xl">
+                                    <p class="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-2">Max Compression</p>
+                                    <p class="text-xl font-black text-red-600" x-text="trussResults.maxComp + ' kN'"></p>
+                                </div>
+                                <div class="p-5 bg-indigo-50 rounded-3xl">
+                                    <p class="text-[9px] text-indigo-400 font-black uppercase tracking-widest mb-2">Stability Check</p>
+                                    <p class="text-xl font-black text-indigo-600 uppercase" x-text="trussResults.stable ? 'STABLE' : 'UNSTABLE'"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RC Design Tab -->
+            <div x-show="activeTab === 'concrete'" x-cloak class="space-y-6 animate-fade-in">
+                <div class="bg-white p-2.5 rounded-[24px] border border-slate-200 inline-flex gap-1.5 shadow-sm no-print">
+                    <button @click="rcSubTab = 'beam'" :class="rcSubTab === 'beam' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-600 hover:bg-slate-50'" class="px-10 py-3.5 rounded-2xl text-xs font-black transition-all uppercase tracking-widest">Beam</button>
+                    <button @click="rcSubTab = 'column'" :class="rcSubTab === 'column' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-600 hover:bg-slate-50'" class="px-10 py-3.5 rounded-2xl text-xs font-black transition-all uppercase tracking-widest">Column</button>
+                    <button @click="rcSubTab = 'slab'" :class="rcSubTab === 'slab' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-600 hover:bg-slate-50'" class="px-10 py-3.5 rounded-2xl text-xs font-black transition-all uppercase tracking-widest">Slab</button>
+                </div>
+
+                <div class="bg-white p-12 rounded-[48px] shadow-sm border border-slate-200">
+                    <template x-if="rcSubTab === 'beam'">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-16">
+                            <div class="space-y-8 no-print">
+                                <div class="space-y-3">
+                                    <h3 class="text-3xl font-black text-slate-800 tracking-tight">Rectangular Beam</h3>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">ACI 318-19 / EIT Code Design</p>
+                                </div>
+                                <div class="grid grid-cols-2 gap-6">
+                                    <div class="space-y-3">
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">f'c (ksc)</label>
+                                        <input type="number" x-model.number="rcBeam.fc" class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black text-lg">
+                                    </div>
+                                    <div class="space-y-3">
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">fy (ksc)</label>
+                                        <input type="number" x-model.number="rcBeam.fy" class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black text-lg">
+                                    </div>
+                                    <div class="space-y-3">
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Width b (cm)</label>
+                                        <input type="number" x-model.number="rcBeam.b" class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black text-lg">
+                                    </div>
+                                    <div class="space-y-3">
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Depth d (cm)</label>
+                                        <input type="number" x-model.number="rcBeam.d" class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black text-lg">
+                                    </div>
+                                </div>
+                                <div class="space-y-3">
+                                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Moment Mu (kg-m)</label>
+                                    <input type="number" x-model.number="rcBeam.mu" class="w-full px-6 py-5 bg-blue-50/30 border border-blue-100 rounded-[24px] outline-none font-black text-2xl text-blue-600">
+                                </div>
+                                <button @click="calcRCBeam()" class="w-full bg-slate-900 text-white py-5 rounded-[24px] font-black text-lg shadow-xl hover:bg-black transition">CALCULATE</button>
+                            </div>
+                            <div class="bg-slate-50 rounded-[56px] p-12 flex flex-col justify-center items-center text-center relative overflow-hidden">
+                                <p class="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4">Required Reinforcement</p>
+                                <div class="flex items-baseline gap-2 mb-10 animate-fade-in">
+                                    <h4 class="text-8xl font-black text-blue-600 tracking-tighter" x-text="rcBeamRes.as"></h4>
+                                    <span class="text-xl font-black text-slate-300">cm²</span>
+                                </div>
+                                <div class="w-full space-y-3">
+                                    <div class="flex justify-between items-center bg-white p-5 rounded-[24px] shadow-sm border border-slate-100">
+                                        <span class="font-black text-slate-800 text-xs">DB12</span>
+                                        <span class="bg-blue-600 text-white px-4 py-1.5 rounded-full text-[10px] font-black" x-text="rcBeamRes.db12 + ' BARS'"></span>
+                                    </div>
+                                    <div class="flex justify-between items-center bg-white p-5 rounded-[24px] shadow-sm border border-slate-100">
+                                        <span class="font-black text-slate-800 text-xs">DB16</span>
+                                        <span class="bg-blue-600 text-white px-4 py-1.5 rounded-full text-[10px] font-black" x-text="rcBeamRes.db16 + ' BARS'"></span>
+                                    </div>
+                                    <div class="flex justify-between items-center bg-white p-5 rounded-[24px] shadow-sm border border-slate-100">
+                                        <span class="font-black text-slate-800 text-xs">DB20</span>
+                                        <span class="bg-blue-600 text-white px-4 py-1.5 rounded-full text-[10px] font-black" x-text="rcBeamRes.db20 + ' BARS'"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="rcSubTab === 'column'">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-16">
+                            <div class="space-y-8 no-print">
+                                <div class="space-y-3">
+                                    <h3 class="text-3xl font-black text-slate-800 tracking-tight">Axial Column</h3>
+                                </div>
+                                <div class="grid grid-cols-2 gap-6">
+                                    <div class="space-y-3">
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">f'c (ksc)</label>
+                                        <input type="number" x-model.number="rcCol.fc" class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black text-lg">
+                                    </div>
+                                    <div class="space-y-3">
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">fy (ksc)</label>
+                                        <input type="number" x-model.number="rcCol.fy" class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black text-lg">
+                                    </div>
+                                </div>
+                                <div class="space-y-3">
+                                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Gross Area Ag (cm²)</label>
+                                    <input type="number" x-model.number="rcCol.ag" class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black text-lg">
+                                </div>
+                                <button @click="calcRCCol()" class="w-full bg-slate-900 text-white py-5 rounded-[24px] font-black text-lg shadow-xl hover:bg-black transition">CALCULATE</button>
+                            </div>
+                            <div class="bg-slate-50 rounded-[56px] p-12 flex flex-col justify-center items-center text-center relative overflow-hidden">
+                                <h4 class="text-8xl font-black text-green-600 tracking-tighter" x-text="rcColRes.pn"></h4>
+                                <span class="text-xl font-black text-slate-300">Tons</span>
+                                <p class="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Ultimate Load Capacity</p>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="rcSubTab === 'slab'">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-16">
+                            <div class="space-y-8 no-print">
+                                <h3 class="text-3xl font-black text-slate-800 tracking-tight">One-way Slab</h3>
+                                <div class="space-y-3">
+                                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Thickness t (cm)</label>
+                                    <input type="number" x-model.number="rcSlab.t" class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black text-lg">
+                                </div>
+                                <div class="space-y-3">
+                                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Moment Mu (kg-m/m)</label>
+                                    <input type="number" x-model.number="rcSlab.mu" class="w-full px-6 py-6 bg-orange-50/30 border border-orange-100 rounded-[28px] outline-none font-black text-2xl text-orange-600">
+                                </div>
+                                <button @click="calcRCSlab()" class="w-full bg-slate-900 text-white py-5 rounded-[24px] font-black text-lg shadow-xl hover:bg-black transition">CHECK</button>
+                            </div>
+                            <div class="bg-slate-50 rounded-[56px] p-12 flex flex-col justify-center items-center text-center relative overflow-hidden">
+                                <h4 class="text-8xl font-black text-orange-600 tracking-tighter" x-text="rcSlabRes.as"></h4>
+                                <span class="text-xl font-black text-slate-300">cm²/m</span>
+                                <p class="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-widest" x-text="'Spacing: ' + rcSlabRes.spacing + ' cm'"></p>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Steel Sections Tab -->
+            <div x-show="activeTab === 'sections'" x-cloak class="space-y-6 animate-fade-in">
+                <div class="bg-white p-10 rounded-[48px] shadow-sm border border-slate-200">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-10 no-print">
+                        <div>
+                            <h2 class="font-black text-3xl text-slate-800 tracking-tight">Steel Database</h2>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">TIS / JIS Standards</p>
+                        </div>
+                        <div class="relative w-full md:w-96 group">
+                            <i data-lucide="search" class="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300"></i>
+                            <input type="text" x-model="sectionSearch" placeholder="Search sections..." class="w-full pl-14 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-[20px] outline-none font-medium text-sm">
+                        </div>
+                    </div>
+                    <div class="overflow-hidden rounded-[32px] border border-slate-100">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-50 text-slate-400 uppercase text-[9px] font-black tracking-[0.2em]">
+                                <tr>
+                                    <th class="px-8 py-5">Designation</th>
+                                    <th class="px-8 py-5 text-right">Weight (kg/m)</th>
+                                    <th class="px-8 py-5 text-right">Area (cm²)</th>
+                                    <th class="px-8 py-5 text-right">Ix (cm⁴)</th>
+                                    <th class="px-8 py-5 text-right">Iy (cm⁴)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-50">
+                                <template x-for="sec in filteredSections" :key="sec.name">
+                                    <tr class="hover:bg-blue-50/40 transition group cursor-pointer" @click="alert('Section selected: ' + sec.name + '\nIx: ' + sec.ix + ' cm4')">
+                                        <td class="px-8 py-5 font-black text-slate-700 group-hover:text-blue-600" x-text="sec.name"></td>
+                                        <td class="px-8 py-5 text-right text-slate-500 font-bold" x-text="sec.w"></td>
+                                        <td class="px-8 py-5 text-right text-slate-500 font-bold" x-text="sec.a"></td>
+                                        <td class="px-8 py-5 text-right text-slate-500 font-bold" x-text="sec.ix"></td>
+                                        <td class="px-8 py-5 text-right text-slate-500 font-bold" x-text="sec.iy"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Settings Modal -->
+    <div x-show="showSettings" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center p-4" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100">
+        <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" @click="showSettings = false"></div>
+        <div class="relative bg-white w-full max-w-lg rounded-[48px] shadow-2xl p-12 overflow-hidden" @click.stop>
+            <div class="flex justify-between items-center mb-10">
+                <h2 class="text-3xl font-black text-slate-800 tracking-tight">Settings</h2>
+                <button @click="showSettings = false" class="text-slate-300 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <div class="space-y-10">
+                <div class="space-y-4">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">OpenAI API Key</label>
+                    <input type="password" x-model="apiKey" placeholder="sk-..." class="w-full px-6 py-5 bg-slate-50 border border-slate-100 rounded-[24px] outline-none font-medium">
+                    <p class="text-[10px] text-slate-400 leading-relaxed font-bold">API Key is required for the AI Assistant. It is stored only in your browser's local storage.</p>
+                </div>
+                <button @click="showSettings = false" class="w-full bg-blue-600 text-white py-6 rounded-[28px] font-black text-lg hover:bg-blue-700 shadow-xl transition">SAVE</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function app() {
+            return {
+                activeTab: 'beam',
+                rcSubTab: 'beam',
+                showSettings: false,
+                apiKey: localStorage.getItem('sc_api_key') || '',
+                chatInput: '',
+                messages: [{ role: 'assistant', content: 'Hello! I am your StructureCAD AI assistant. How can I help you today?' }],
+                loadingChat: false,
+                tabs: [
+                    { id: 'beam', name: 'Beam Analysis', icon: 'layout' },
+                    { id: 'truss', name: 'Truss Analysis', icon: 'triangle' },
+                    { id: 'concrete', name: 'RC Design', icon: 'box' },
+                    { id: 'sections', name: 'Steel Sections', icon: 'book-open' },
+                    { id: 'chat', name: 'AI Assistant', icon: 'message-square' }
+                ],
+
+                // Beam Data
+                beam: { span: 6 },
+                supports: [{ type: 'Pin', pos: 0 }, { type: 'Roller', pos: 6 }],
+                loads: [{ type: 'UDL', val: -5, pos: 0, end: 6 }],
+                newSupport: { type: 'Pin', pos: 0 },
+                newLoad: { type: 'Point', val: -10, pos: 3, end: 6 },
+                beamResults: { maxShear: '0.00', maxMoment: '0.00', reactions: [] },
+
+                // Truss Data
+                trussNodes: [
+                    { x: 0, y: 0, support: 'Pin', fx: 0, fy: 0 },
+                    { x: 4, y: 0, support: 'Roller', fx: 0, fy: 0 },
+                    { x: 2, y: 3, support: 'None', fx: 0, fy: -50 }
+                ],
+                trussMembers: [[0, 2], [1, 2], [0, 1]],
+                newNode: { x: 0, y: 0 },
+                newMember: { n1: 0, n2: 1 },
+                trussNodeId: 0,
+                trussSupport: 'None',
+                trussFx: 0,
+                trussFy: 0,
+                trussResults: { maxTension: '0.00', maxComp: '0.00', stable: true },
+
+                // RC Data
+                rcBeam: { fc: 240, fy: 4000, b: 20, d: 35, mu: 5000 },
+                rcBeamRes: { as: '0.00', db12: 0, db16: 0, db20: 0, error: '' },
+                rcCol: { fc: 240, fy: 4000, ag: 400, rho: 1 },
+                rcColRes: { pn: '0.00', as: '0.00' },
+                rcSlab: { t: 10, mu: 1200 },
+                rcSlabRes: { as: '0.00', spacing: '0.0' },
+
+                // Sections Data
+                sectionSearch: '',
+                sections: [
+                    { name: 'H 100x100x6x8', w: 17.2, a: 21.9, ix: 383, iy: 134 },
+                    { name: 'H 125x125x6.5x9', w: 23.8, a: 30.3, ix: 847, iy: 293 },
+                    { name: 'H 150x150x7x10', w: 31.5, a: 40.1, ix: 1640, iy: 563 },
+                    { name: 'H 175x175x7.5x11', w: 40.2, a: 51.2, ix: 2880, iy: 984 },
+                    { name: 'H 200x200x8x12', w: 49.9, a: 63.5, ix: 4720, iy: 1600 },
+                    { name: 'H 250x250x9x14', w: 72.4, a: 92.2, ix: 10800, iy: 3650 },
+                    { name: 'H 300x300x10x15', w: 94.0, a: 119.8, ix: 20400, iy: 6750 },
+                    { name: 'H 350x350x12x19', w: 137, a: 173.9, ix: 40300, iy: 13600 },
+                    { name: 'H 400x400x13x21', w: 172, a: 218.7, ix: 66600, iy: 22400 },
+                    { name: 'H 200x100x5.5x8', w: 21.3, a: 27.2, ix: 1840, iy: 134 },
+                    { name: 'H 250x125x6x9', w: 29.6, a: 37.7, ix: 4050, iy: 279 },
+                    { name: 'H 300x150x6.5x9', w: 36.7, a: 46.8, ix: 7210, iy: 508 },
+                    { name: 'H 400x200x8x13', w: 66, a: 84.1, ix: 23700, iy: 1740 },
+                    { name: 'I 150x75x5.5x9.5', w: 17.1, a: 21.8, ix: 819, iy: 57.5 },
+                    { name: 'I 200x100x7x10', w: 26.0, a: 33.1, ix: 2170, iy: 138 },
+                    { name: 'I 250x125x7.5x12.5', w: 38.3, a: 48.8, ix: 5200, iy: 352 },
+                    { name: 'I 300x150x8x13', w: 48.3, a: 61.5, ix: 9480, iy: 585 },
+                    { name: 'C 75x40x5x7', w: 6.9, a: 8.8, ix: 75.3, iy: 12.2 },
+                    { name: 'C 100x50x5x7.5', w: 9.4, a: 11.9, ix: 188, iy: 26.0 },
+                    { name: 'C 150x75x6.5x10', w: 18.6, a: 23.7, ix: 861, iy: 117 },
+                    { name: 'C 200x80x7.5x11', w: 24.6, a: 31.3, ix: 1910, iy: 168 },
+                    { name: 'C 300x90x9x13', w: 38.1, a: 48.6, ix: 6440, iy: 309 },
+                    { name: 'CHS 60.5x3.2', w: 4.52, a: 5.76, ix: 24.5, iy: 24.5 },
+                    { name: 'CHS 114.3x4.5', w: 12.2, a: 15.5, ix: 237, iy: 237 }
+                ],
+
+                init() {
+                    lucide.createIcons();
+                    this.initPlots();
+                    this.$watch('apiKey', val => localStorage.setItem('sc_api_key', val));
+                    setTimeout(() => { this.solveBeam(); this.solveTruss(); }, 500);
+                },
+
+                get filteredSections() {
+                    if (!this.sectionSearch) return this.sections;
+                    return this.sections.filter(s => s.name.toLowerCase().includes(this.sectionSearch.toLowerCase()));
+                },
+
+                initPlots() {
+                    const commonLayout = {
+                        margin: { t: 60, b: 60, l: 70, r: 40 },
+                        xaxis: { title: 'Position (m)', gridcolor: '#f8fafc', zerolinecolor: '#cbd5e1' },
+                        yaxis: { gridcolor: '#f8fafc', zerolinecolor: '#cbd5e1' },
+                        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                        showlegend: false, font: { family: 'Inter, sans-serif', size: 11 }
+                    };
+                    Plotly.newPlot('shearPlot', [{ x: [0], y: [0] }], { ...commonLayout, title: 'SHEAR FORCE (kN)' }, { responsive: true, displayModeBar: false });
+                    Plotly.newPlot('momentPlot', [{ x: [0], y: [0] }], { ...commonLayout, title: 'BENDING MOMENT (kNm)' }, { responsive: true, displayModeBar: false });
+                    Plotly.newPlot('trussPlot', [], { ...commonLayout, title: 'TRUSS MODEL' }, { responsive: true });
+                },
+
+                // --- Beam Solver (Matrix Stiffness Method) ---
+                addSupport() { this.supports.push({ ...this.newSupport }); this.solveBeam(); },
+                removeSupport(i) { this.supports.splice(i, 1); this.solveBeam(); },
+                addLoad() { this.loads.push({ ...this.newLoad }); this.solveBeam(); },
+                removeLoad(i) { this.loads.splice(i, 1); this.solveBeam(); },
+
+                solveBeam() {
+                    if (this.supports.length < 1) {
+                        Plotly.purge('shearPlot'); Plotly.purge('momentPlot'); this.initPlots();
+                        this.beamResults = { maxShear: '0.00', maxMoment: '0.00', reactions: [] };
+                        return;
+                    }
+                    let nodes = [0, this.beam.span];
+                    this.supports.forEach(s => nodes.push(s.pos));
+                    this.loads.forEach(l => { nodes.push(l.pos); if(l.end) nodes.push(l.end); });
+                    for(let i=0; i<=40; i++) nodes.push((i/40)*this.beam.span);
+                    nodes = [...new Set(nodes)].sort((a, b) => a - b);
+                    const n_nodes = nodes.length, n_dof = n_nodes * 2;
+                    const K = Array.from({length: n_dof}, () => new Float64Array(n_dof)), F = new Float64Array(n_dof);
+                    const EI = 10000;
+                    for(let i=0; i < n_nodes-1; i++) {
+                        const L = nodes[i+1] - nodes[i];
+                        if (L <= 0) continue;
+                        const L2 = L*L, L3 = L2*L;
+                        const k_local = [[12, 6*L, -12, 6*L],[6*L, 4*L2, -6*L, 2*L2],[-12, -6*L, 12, -6*L],[6*L, 2*L2, -6*L, 4*L2]].map(r => r.map(v => v * EI / L3));
+                        const idx = [i*2, i*2+1, (i+1)*2, (i+1)*2+1];
+                        for(let r=0; r<4; r++) for(let c=0; c<4; c++) K[idx[r]][idx[c]] += k_local[r][c];
+                    }
+                    this.loads.forEach(l => {
+                        const val = l.val;
+                        if(l.type === 'Point') {
+                            const nodeIdx = nodes.findIndex(n => Math.abs(n - l.pos) < 1e-6);
+                            if(nodeIdx !== -1) F[nodeIdx*2] += val;
+                        } else {
+                            for(let i=0; i < n_nodes-1; i++) {
+                                const x1 = nodes[i], x2 = nodes[i+1];
+                                if(x1 >= l.pos - 1e-6 && x2 <= l.end + 1e-6) {
+                                    const L = x2 - x1; F[i*2] += val*L/2; F[i*2+1] += val*L*L/12; F[(i+1)*2] += val*L/2; F[(i+1)*2+1] -= val*L*L/12;
+                                }
+                            }
+                        }
+                    });
+                    const boundary = new Array(n_dof).fill(false);
+                    this.supports.forEach(s => {
+                        const nodeIdx = nodes.findIndex(n => Math.abs(n - s.pos) < 1e-6);
+                        if(nodeIdx !== -1) { boundary[nodeIdx*2] = true; if(s.type === 'Fixed') boundary[nodeIdx*2+1] = true; }
+                    });
+                    const free_dofs = []; for(let i=0; i<n_dof; i++) if(!boundary[i]) free_dofs.push(i);
+                    if (free_dofs.length === 0) return;
+                    const K_red = free_dofs.map(r => free_dofs.map(c => K[r][c])), F_red = free_dofs.map(r => F[r]);
+                    const U_red = this.gaussianElimination(K_red, F_red);
+                    const U = new Float64Array(n_dof); free_dofs.forEach((dof, i) => U[dof] = U_red[i]);
+                    const shear = [], moment = [], reactions = [];
+                    for(let i=0; i < n_nodes; i++) {
+                        const R_v = K[i*2].reduce((sum, k, j) => sum + k * U[j], 0) - F[i*2];
+                        if(boundary[i*2]) reactions.push({pos: nodes[i], val: R_v.toFixed(2)});
+                    }
+                    this.beamResults.reactions = reactions;
+                    nodes.forEach((x, i) => {
+                        let v_val = 0, m_val = 0;
+                        if(i < n_nodes-1) {
+                            const L = nodes[i+1] - nodes[i], L2 = L*L, L3 = L2*L;
+                            const u_loc = [U[i*2], U[i*2+1], U[(i+1)*2], U[(i+1)*2+1]];
+                            m_val = (EI/L2) * (-6*u_loc[0] - 4*L*u_loc[1] + 6*u_loc[2] - 2*L*u_loc[3]);
+                            v_val = (EI/L3) * (12*u_loc[0] + 6*L*u_loc[1] - 12*u_loc[2] + 6*L*u_loc[3]);
+                            this.loads.forEach(l => { if(l.type === 'UDL' && x >= l.pos-1e-6 && nodes[i+1] <= l.end+1e-6) { v_val -= l.val*L/2; m_val -= l.val*L*L/12; } });
+                        } else {
+                            const L = nodes[i] - nodes[i-1], L2 = L*L;
+                            const u_loc = [U[(i-1)*2], U[(i-1)*2+1], U[i*2], U[i*2+1]];
+                            m_val = (EI/L2) * (6*u_loc[0] + 2*L*u_loc[1] - 6*u_loc[2] + 4*L*u_loc[3]);
+                            v_val = (EI/(L2*L)) * (12*u_loc[0] + 6*L*u_loc[1] - 12*u_loc[2] + 6*L*u_loc[3]);
+                            this.loads.forEach(l => { if(l.type === 'UDL' && nodes[i-1] >= l.pos-1e-6 && x <= l.end+1e-6) { v_val += l.val*L/2; } });
+                        }
+                        shear.push(v_val); moment.push(m_val);
+                    });
+                    this.beamResults.maxShear = Math.max(...shear.map(Math.abs)).toFixed(2);
+                    this.beamResults.maxMoment = Math.max(...moment.map(Math.abs)).toFixed(2);
+                    Plotly.update('shearPlot', { x: [nodes], y: [shear] }, { 'xaxis.range': [-0.5, this.beam.span+0.5] });
+                    Plotly.update('momentPlot', { x: [nodes], y: [moment] }, { 'xaxis.range': [-0.5, this.beam.span+0.5] });
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                gaussianElimination(A, b) {
+                    const n = b.length;
+                    for (let i = 0; i < n; i++) {
+                        let max = i; for (let j = i + 1; j < n; j++) if (Math.abs(A[j][i]) > Math.abs(A[max][i])) max = j;
+                        if (Math.abs(A[max][i]) < 1e-12) throw new Error("Singular matrix");
+                        [A[i], A[max]] = [A[max], A[i]]; [b[i], b[max]] = [b[max], b[i]];
+                        for (let j = i + 1; j < n; j++) {
+                            const f = A[j][i] / A[i][i]; b[j] -= f * b[i];
+                            for (let k = i; k < n; k++) A[j][k] -= f * A[i][k];
+                        }
+                    }
+                    const x = new Float64Array(n);
+                    for (let i = n - 1; i >= 0; i--) {
+                        let s = 0; for (let j = i + 1; j < n; j++) s += A[i][j] * x[j];
+                        x[i] = (b[i] - s) / A[i][i];
+                    }
+                    return x;
+                },
+
+                // --- Truss Solver ---
+                addNode() { this.trussNodes.push({ ...this.newNode, support: 'None', fx: 0, fy: 0 }); this.solveTruss(); },
+                addMember() { this.trussMembers.push([this.newMember.n1, this.newMember.n2]); this.solveTruss(); },
+                updateTrussNode() { const n = this.trussNodes[this.trussNodeId]; n.support = this.trussSupport; n.fx = this.trussFx; n.fy = this.trussFy; this.solveTruss(); },
+                resetTruss() { this.trussNodes = []; this.trussMembers = []; Plotly.purge('trussPlot'); this.solveTruss(); },
+                solveTruss() {
+                    const nodes = this.trussNodes, members = this.trussMembers;
+                    if(nodes.length < 2 || members.length < 1) return;
+                    const n_dof = nodes.length * 2, K = Array.from({length: n_dof}, () => new Float64Array(n_dof)), F = new Float64Array(n_dof), EA = 10000;
+                    members.forEach(m => {
+                        const n1 = nodes[m[0]], n2 = nodes[m[1]], L = Math.sqrt((n2.x-n1.x)**2 + (n2.y-n1.y)**2), c = (n2.x-n1.x)/L, s = (n2.y-n1.y)/L;
+                        const k = [[c*c, c*s, -c*c, -c*s],[c*s, s*s, -c*s, -s*s],[-c*c, -c*s, c*c, c*s],[-c*s, -s*s, c*s, s*s]].map(r => r.map(v => v * EA / L));
+                        const d = [m[0]*2, m[0]*2+1, m[1]*2, m[1]*2+1];
+                        for(let r=0; r<4; r++) for(let col=0; col<4; col++) K[d[r]][d[col]] += k[r][col];
+                    });
+                    nodes.forEach((n, i) => { F[i*2] = n.fx; F[i*2+1] = n.fy; });
+                    const boundary = new Array(n_dof).fill(false);
+                    nodes.forEach((n, i) => { if(n.support === 'Pin') { boundary[i*2] = true; boundary[i*2+1] = true; } else if(n.support === 'Roller') { boundary[i*2+1] = true; } });
+                    const free = []; for(let i=0; i<n_dof; i++) if(!boundary[i]) free.push(i);
+                    this.trussResults.stable = free.length > 0;
+                    if(!this.trussResults.stable) return;
+                    const K_red = free.map(r => free.map(c => K[r][c])), F_red = free.map(r => F[r]);
+                    let U_red; try { U_red = this.gaussianElimination(K_red, F_red); } catch(e) { this.trussResults.stable = false; return; }
+                    const U = new Float64Array(n_dof); free.forEach((dof, i) => U[dof] = U_red[i]);
+                    const traces = []; let maxT = 0, maxC = 0;
+                    members.forEach((m, idx) => {
+                        const n1 = nodes[m[0]], n2 = nodes[m[1]], L = Math.sqrt((n2.x-n1.x)**2 + (n2.y-n1.y)**2), c = (n2.x-n1.x)/L, s = (n2.y-n1.y)/L;
+                        const u = [U[m[0]*2], U[m[0]*2+1], U[m[1]*2], U[m[1]*2+1]];
+                        const force = (EA/L) * (-c*u[0] - s*u[1] + c*u[2] + s*u[3]);
+                        if(force > maxT) maxT = force; if(force < maxC) maxC = force;
+                        traces.push({ x: [n1.x, n2.x], y: [n1.y, n2.y], mode: 'lines+markers', line: { color: force > 0.1 ? '#2563eb' : (force < -0.1 ? '#dc2626' : '#94a3b8'), width: 2 + Math.abs(force)/10 } });
+                    });
+                    this.trussResults.maxTension = maxT.toFixed(1); this.trussResults.maxComp = Math.abs(maxC).toFixed(1);
+                    Plotly.newPlot('trussPlot', traces, { xaxis: { scaleanchor: 'y' } });
+                },
+
+                // --- RC Design Calculations ---
+                calcRCBeam() { const { fc, fy, b, d, mu } = this.rcBeam; const phi = 0.9, mu_cm = mu * 100, rn = mu_cm / (phi * b * d * d); const rho = (0.85 * fc / fy) * (1 - Math.sqrt(Math.max(0, 1 - (2 * rn) / (0.85 * fc)))); const as = Math.max(rho * b * d, 0.001 * b * d); this.rcBeamRes = { as: as.toFixed(2), db12: Math.ceil(as / 1.13), db16: Math.ceil(as / 2.01), db20: Math.ceil(as / 3.14) }; },
+                calcRCCol() { const { fc, fy, ag, rho } = this.rcCol; const ast = (rho/100) * ag, phi = 0.65, pn = 0.8 * phi * (0.85 * fc * (ag - ast) + fy * ast); this.rcColRes = { pn: (pn/1000).toFixed(1), as: ast.toFixed(1) }; },
+                calcRCSlab() { const { t, mu } = this.rcSlab; const d = t - 2.5, phi = 0.9, fc = 240, fy = 4000, rn = (mu * 100) / (phi * 100 * d * d); const rho = (0.85 * fc / fy) * (1 - Math.sqrt(Math.max(0, 1 - (2 * rn) / (0.85 * fc)))); const as = Math.max(rho * 100 * d, 0.0018 * 100 * t); this.rcSlabRes = { as: as.toFixed(2), spacing: Math.min((1.13 * 100) / as, 3 * t, 45).toFixed(1) }; },
+
+                // --- AI Assistant ---
+                async sendMessage() {
+                    if (!this.chatInput.trim()) return;
+                    if (!this.apiKey) { alert("Please set your OpenAI API Key in Settings first."); return; }
+                    this.messages.push({ role: 'user', content: this.chatInput }); this.chatInput = ''; this.loadingChat = true;
+                    try {
+                        const r = await fetch('https://api.openai.com/v1/chat/completions', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
+                            body: JSON.stringify({
+                                model: 'gpt-3.5-turbo',
+                                messages: [
+                                    { role: 'system', content: 'You are StructureCAD AI, an expert structural engineer specializing in design codes (ACI 318, AISC, EIT Thailand). Provide precise, professional advice. Mention relevant formulas when helpful.' },
+                                    ...this.messages.slice(-6)
+                                ]
+                            })
+                        });
+                        const d = await r.json();
+                        if (d.error) throw new Error(d.error.message);
+                        this.messages.push({ role: 'assistant', content: d.choices[0].message.content });
+                    } catch (e) { this.messages.push({ role: 'assistant', content: 'Error: ' + e.message }); }
+                    finally { this.loadingChat = false; this.$nextTick(() => { const c = document.getElementById('chat-messages'); c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' }); }); }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,19 +1,15 @@
-# 🎈 Blank app template
+# 🏗️ StructureCAD AI - Standalone HTML
 
-A simple Streamlit app template for you to modify!
+This repository contains the standalone, high-performance HTML version of **StructureCAD AI**.
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://blank-app-template.streamlit.app/)
+### 🚀 Getting Started
+Simply open `index.html` in any modern web browser. No installation or backend required!
 
-### How to run it on your own machine
+### ✨ Features
+- **AI Structural Assistant**: Professional advice on ACI/AISC/EIT codes (Requires OpenAI API Key).
+- **Beam Analysis**: Interactive Shear Force and Bending Moment diagrams.
+- **RC Design Suite**: Quick calculators for Beams, Columns, and Slabs.
+- **Steel Database**: Searchable Thai Industrial Standard (TIS) steel sections.
 
-1. Install the requirements
-
-   ```
-   $ pip install -r requirements.txt
-   ```
-
-2. Run the app
-
-   ```
-   $ streamlit run streamlit_app.py
-   ```
+---
+© 2025 KMUTNB Structural Project x Jules AI
