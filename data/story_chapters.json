@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1,
+    "title": "The Fallen Capital",
+    "description": "Valerius and his guards escape the burning capital of Lucis-Oros.",
+    "battles": 3,
+    "reward_gems": 100
+  },
+  {
+    "id": 2,
+    "title": "Whispers in the Dust",
+    "description": "Traveling through the barren wastes, the group finds an unlikely ally.",
+    "battles": 4,
+    "reward_gems": 150
+  }
+]
