@@ -1,0 +1,60 @@
+{
+  "characters": [
+    {
+      "id": "hero_01",
+      "name": "Valerius",
+      "title": "Exiled Prince",
+      "rarity": 5,
+      "element": "Light",
+      "hp": 3500,
+      "atk": 420,
+      "def": 310,
+      "mag": 280,
+      "spr": 300,
+      "skills": ["skill_v01", "skill_v02", "lb_v01"],
+      "description": "The last heir of the Sun Empire, seeking to reclaim his throne with a holy blade."
+    },
+    {
+      "id": "hero_02",
+      "name": "Borg",
+      "title": "Iron Bastion",
+      "rarity": 4,
+      "element": "Earth",
+      "hp": 5200,
+      "atk": 280,
+      "def": 550,
+      "mag": 150,
+      "spr": 400,
+      "skills": ["skill_b01", "skill_b02", "lb_b01"],
+      "description": "A loyal knight whose shield has never cracked under pressure."
+    },
+    {
+      "id": "hero_03",
+      "name": "Sera",
+      "title": "Swift Gale",
+      "rarity": 4,
+      "element": "Wind",
+      "hp": 2800,
+      "atk": 450,
+      "def": 220,
+      "mag": 200,
+      "spr": 250,
+      "skills": ["skill_s01", "skill_s02", "lb_s01"],
+      "description": "A wanderer who speaks with the wind and strikes faster than sight."
+    },
+    {
+      "id": "hero_04",
+      "name": "Kaelen",
+      "title": "Void Seer",
+      "rarity": 4,
+      "element": "Dark",
+      "hp": 3000,
+      "atk": 200,
+      "def": 250,
+      "mag": 500,
+      "spr": 450,
+      "skills": ["skill_k01", "skill_k02", "lb_k01"],
+      "description": "A scholar of the forbidden arts who sees the threads of fate."
+    }
+  ]
+}

@@ -1,19 +1,38 @@
-# 🎈 Blank app template
+# Project Crystal Fate (2D Portrait RPG)
 
-A simple Streamlit app template for you to modify!
+A 2D Portrait RPG inspired by FFBE and FFXV.
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://blank-app-template.streamlit.app/)
+## Core Features
+- **FFBE-style Battle System**: Turn-based, 4-man party, simultaneous skill execution.
+- **Chain System**: Hit-timing based damage multipliers with chain families.
+- **Limit Burst**: Character-specific ultimate moves.
+- **Offline Gacha**: 1%/9%/90% rates, simulated with local JSON storage.
+- **Portrait Mode**: 9:16 aspect ratio (540x960).
 
-### How to run it on your own machine
+## Project Structure
+- `/scenes`: Battle, Story, Gacha, and UI scenes.
+- `/scripts`: Core logic (BattleManager, ChainSystem, GachaSystem, etc.).
+- `/data`: Game data in JSON format (Characters, Skills, Story).
+- `/assets`: Character design prompts and placeholders.
 
-1. Install the requirements
+## How to Run
+1. Download and install **Godot Engine 4.x**.
+2. Open the project by selecting `project.godot`.
+3. Press `F5` to run the main battle scene.
 
-   ```
-   $ pip install -r requirements.txt
-   ```
+## Exporting for Web (HTML5)
+1. Go to `Project` > `Export`.
+2. Click `Add...` and select `Web`.
+3. Ensure the `VRAM Texture Compression` matches your target.
+4. Click `Export Project` and choose a destination folder.
+5. Host the resulting files on a web server (e.g., GitHub Pages, itch.io).
 
-2. Run the app
+## Exporting for PC (Windows/Linux/macOS)
+1. Go to `Project` > `Export`.
+2. Click `Add...` and select your target platform.
+3. Click `Export Project`.
 
-   ```
-   $ streamlit run streamlit_app.py
-   ```
+## Technical Notes
+- The `ChainSystem` uses a timing window of ~0.33s for hits to connect.
+- Damage formula: `(Stat^2 / EnemyStat) * Multiplier * ElementMod * ChainMult`.
+- Gacha results are saved to `user://save_game.json`.
