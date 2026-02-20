@@ -49,7 +49,7 @@
          * - World Exploration: เดินบนแผนที่ Grid 20x15
          * - Party System: มีเพื่อนเดินตามหลัง
          * - ATB Battle: ต่อสู้แบบเกจเวลา
-         * - Progression: เก็บ EXP เลเวลอัป และซื้อ Energy Orb เสริมแกร่ง
+         * - Progression: เก็บ EXP เลเวลอัป และซื้อ Materia เสริมแกร่ง
          */
 
         /**
@@ -59,56 +59,56 @@
         const MAP_WIDTH = 20;
         const MAP_HEIGHT = 15;
 
-        // Tile Types
+        // Tile Types (FF7 Themed)
         const TILES = {
             VOID: 0,
-            IRON: 1, // Ironhaven
-            DIRT: 2, // Dust Frontier
-            RUIN: 3, // Reactor Ruin
+            MIDGAR: 1, // Midgar Streets
+            SLUMS: 2,  // Sector 7 Slums
+            MAKO: 3,   // Mako Reactor
             WALL: 4,
             DOOR: 5,
-            TOWER: 6 // Sky Pillar
+            CRATER: 6  // Northern Crater
         };
 
         // Game State
         const state = {
-            screen: 'TITLE', // TITLE, WORLD, BATTLE, MENU, DIALOGUE, SHOP
+            screen: 'TITLE',
             worldX: 5,
-            worldY: 5,
+            worldY: 3, // Start near Seventh Heaven
             playerDir: 'down',
             party: [],
             inventory: {
                 credits: 500,
-                items: [{ name: 'Repair Kit', heal: 100, count: 3 }],
-                orbs: []
+                items: [{ name: 'Potion', heal: 100, count: 5 }],
+                materia: []
             },
-            history: [], // For party follow effect
+            history: [],
             currentMap: 'WORLD',
             dialogue: null,
             battle: null,
             quests: {
-                main: 0 // 0: Start, 1: Go to Ruin, 2: Beat Boss
+                main: 0
             },
             npcs: [
-                { x: 2, y: 2, name: 'Mayor', msg: 'Welcome to Ironhaven. The reactor is leaking again...' },
-                { x: 8, y: 5, name: 'Scout', msg: 'Watch out for Rust Hounds in the Dust Frontier!' },
-                { x: 15, y: 9, name: 'Hermit', msg: 'The Sky Pillar... only the chosen one can enter.' },
-                { x: 5, y: 2, name: 'Merchant', msg: 'Want some Energy Orbs?', shop: true }
+                { x: 2, y: 2, name: 'Barret', msg: 'Cloud! We gotta get to the Reactor before Shinra catches us!' },
+                { x: 8, y: 5, name: 'Guard', msg: 'Halt! This sector is under lockdown by SOLDIER.' },
+                { x: 15, y: 9, name: 'Sephiroth', msg: 'The planet is dying, Cloud... join me.' },
+                { x: 5, y: 2, name: 'Tifa', msg: 'Seventh Heaven is open. Want some Materia?', shop: true }
             ]
         };
 
-        // Character Templates
+        // Character Templates (FF7 Inspired)
         const CHAR_DATA = [
-            { id: 0, name: 'Kaelen', job: 'Mercenary', hp: 200, maxHp: 200, en: 50, maxEn: 50, atk: 25, def: 15, spd: 10, color: '#3498db', orb: null, exp: 0, level: 1 },
-            { id: 1, name: 'Lyra', job: 'Mechanic', hp: 150, maxHp: 150, en: 80, maxEn: 80, atk: 18, def: 10, spd: 15, color: '#e67e22', orb: null, exp: 0, level: 1 },
-            { id: 2, name: 'Caelum', job: 'Oracle', hp: 120, maxHp: 120, en: 150, maxEn: 150, atk: 12, def: 8, spd: 12, color: '#f1c40f', orb: null, exp: 0, level: 1 }
+            { id: 0, name: 'Cloud', job: 'Ex-SOLDIER', hp: 250, maxHp: 250, en: 60, maxEn: 60, atk: 30, def: 20, spd: 12, color: '#483d8b', hair: '#f1c40f', orb: null, exp: 0, level: 1 },
+            { id: 1, name: 'Tifa', job: 'Brawler', hp: 200, maxHp: 200, en: 80, maxEn: 80, atk: 25, def: 15, spd: 18, color: '#ecf0f1', hair: '#2c3e50', orb: null, exp: 0, level: 1 },
+            { id: 2, name: 'Aerith', job: 'Cetrå', hp: 180, maxHp: 180, en: 150, maxEn: 150, atk: 15, def: 12, spd: 14, color: '#e91e63', hair: '#8d6e63', orb: null, exp: 0, level: 1 }
         ];
 
-        // Orb Types
+        // Materia Types (formerly Orbs)
         const ORBS = {
-            FLAME: { name: 'Flame Orb', atk: 5, def: 0, spd: 0, skill: 'Heat Pulse', cost: 15 },
-            PULSE: { name: 'Pulse Orb', atk: 0, def: 0, spd: 8, skill: 'Haste', cost: 20 },
-            GUARD: { name: 'Guard Orb', atk: 0, def: 10, spd: -2, skill: 'Iron Wall', cost: 10 }
+            FIRE: { name: 'Fire Materia', atk: 5, def: 0, spd: 0, skill: 'Fire', cost: 20 },
+            LIGHTNING: { name: 'Bolt Materia', atk: 0, def: 0, spd: 8, skill: 'Bolt', cost: 25 },
+            RESTORE: { name: 'Heal Materia', atk: 0, def: 10, spd: -2, skill: 'Cure', cost: 15 }
         };
 
         // Initialize Party
@@ -163,21 +163,21 @@
             ctx.fillStyle = 'white';
             ctx.font = '24px Courier New';
             ctx.textAlign = 'center';
-            ctx.fillText("ENERGY ORB SHOP", 400, 100);
+            ctx.fillText("MATERIA SHOP", 400, 100);
 
             ctx.textAlign = 'left';
             ctx.font = '18px Courier New';
             let i = 0;
             for (let key in ORBS) {
                 const orb = ORBS[key];
-                ctx.fillText(`[${i+1}] ${orb.name} - ${orb.cost} Credits`, 100, 180 + i * 60);
+                ctx.fillText(`[${i+1}] ${orb.name} - ${orb.cost} Gil`, 100, 180 + i * 60);
                 ctx.font = '14px Courier New';
-                ctx.fillText(`    (+${orb.atk} ATK, +${orb.def} DEF, +${orb.spd} SPD) Skill: ${orb.skill}`, 100, 205 + i * 60);
+                ctx.fillText(`    (+${orb.atk} ATK, +${orb.def} DEF, +${orb.spd} SPD) Magic: ${orb.skill}`, 100, 205 + i * 60);
                 ctx.font = '18px Courier New';
                 i++;
             }
 
-            ctx.fillText(`Current Credits: ${state.inventory.credits}`, 100, 500);
+            ctx.fillText(`Current Gil: ${state.inventory.credits}`, 100, 500);
             ctx.fillText("Press [1-3] to Buy, [X] to Exit", 100, 530);
         }
 
@@ -213,7 +213,7 @@
             // Draw Enemies
             state.battle.enemies.forEach((e, i) => {
                 if (e.hp > 0) {
-                    drawSprite(2 + i * 4, 4, e.color);
+                    drawSprite(2 + i * 4, 4, e.color, '#333');
                     ctx.fillStyle = 'white';
                     ctx.font = '16px Courier New';
                     ctx.textAlign = 'center';
@@ -266,13 +266,14 @@
         function drawTitle() {
             ctx.fillStyle = 'black';
             ctx.fillRect(0, 0, 800, 600);
-            ctx.fillStyle = 'white';
-            ctx.font = '40px Courier New';
+            ctx.fillStyle = '#00ffff';
+            ctx.font = 'italic 50px Courier New';
             ctx.textAlign = 'center';
-            ctx.fillText('CRYSTAL FATE', 400, 250);
+            ctx.fillText('FINAL FANTASY VII', 400, 250);
+            ctx.fillStyle = 'white';
             ctx.font = '20px Courier New';
-            ctx.fillText('INDUSTRIAL ECHOES', 400, 300);
-            ctx.fillText('Press SPACE to Start', 400, 450);
+            ctx.fillText('MAKO ECHOES', 400, 300);
+            ctx.fillText('Press SPACE to Join Avalanche', 400, 450);
         }
 
         function drawWorld() {
@@ -291,7 +292,7 @@
 
             // Draw NPCs
             state.npcs.forEach(n => {
-                drawSprite(n.x, n.y, '#e74c3c');
+                drawSprite(n.x, n.y, '#e74c3c', '#5d4037');
             });
 
             // Draw Party
@@ -302,16 +303,17 @@
             ctx.fillStyle = 'white';
             ctx.font = '16px Courier New';
             ctx.textAlign = 'left';
-            ctx.fillText(`Ironhaven Frontier - [${state.worldX}, ${state.worldY}] | HP: ${state.party[0].hp}/${state.party[0].maxHp}`, 30, 572);
+            const locName = state.worldY < 6 ? "Sector 7 Slums" : "Mako Reactor Area";
+            ctx.fillText(`${locName} - [${state.worldX}, ${state.worldY}] | Gil: ${state.inventory.credits}`, 30, 572);
         }
 
         function getTileColor(tile) {
             switch(tile) {
-                case TILES.IRON: return '#2c3e50';
-                case TILES.DIRT: return '#95a5a6';
-                case TILES.RUIN: return '#7f8c8d';
-                case TILES.WALL: return '#1a1a1a';
-                case TILES.TOWER: return '#34495e';
+                case TILES.MIDGAR: return '#1c2833';
+                case TILES.SLUMS: return '#5d4037';
+                case TILES.MAKO: return '#1abc9c'; // Greenish Mako glow
+                case TILES.WALL: return '#121212';
+                case TILES.CRATER: return '#d5d8dc';
                 default: return '#000';
             }
         }
@@ -321,18 +323,27 @@
             const follower1 = state.history[2] || {x: state.worldX, y: state.worldY};
             const follower2 = state.history[5] || {x: state.worldX, y: state.worldY};
 
-            drawSprite(follower2.x, follower2.y, state.party[2].color);
-            drawSprite(follower1.x, follower1.y, state.party[1].color);
-            drawSprite(state.worldX, state.worldY, state.party[0].color);
+            drawSprite(follower2.x, follower2.y, state.party[2].color, state.party[2].hair);
+            drawSprite(follower1.x, follower1.y, state.party[1].color, state.party[1].hair);
+            drawSprite(state.worldX, state.worldY, state.party[0].color, state.party[0].hair);
         }
 
-        function drawSprite(x, y, color) {
+        function drawSprite(x, y, color, hairColor = '#ff0000') {
+            const px = x * TILE_SIZE;
+            const py = y * TILE_SIZE;
+
+            // Body/Outfit
             ctx.fillStyle = color;
-            ctx.fillRect(x * TILE_SIZE + 4, y * TILE_SIZE + 4, 32, 32);
-            // Eyes
-            ctx.fillStyle = 'white';
-            ctx.fillRect(x * TILE_SIZE + 8, y * TILE_SIZE + 10, 4, 4);
-            ctx.fillRect(x * TILE_SIZE + 20, y * TILE_SIZE + 10, 4, 4);
+            ctx.fillRect(px + 6, py + 12, 28, 24);
+
+            // Head/Hair
+            ctx.fillStyle = hairColor;
+            ctx.fillRect(px + 8, py + 4, 24, 12);
+
+            // Eyes (materia-glow for SOLDIER feel)
+            ctx.fillStyle = '#00ffff';
+            ctx.fillRect(px + 12, py + 10, 3, 3);
+            ctx.fillRect(px + 24, py + 10, 3, 3);
         }
 
         function drawUIBox(x, y, w, h) {
@@ -370,9 +381,9 @@
             }
 
             if (state.screen === 'SHOP') {
-                if (e.key === '1') buyOrb('FLAME');
-                if (e.key === '2') buyOrb('PULSE');
-                if (e.key === '3') buyOrb('GUARD');
+                if (e.key === '1') buyOrb('FIRE');
+                if (e.key === '2') buyOrb('LIGHTNING');
+                if (e.key === '3') buyOrb('RESTORE');
                 if (e.key === 'x' || e.key === 'X') state.screen = 'WORLD';
             }
 
@@ -442,21 +453,21 @@
 
             if (allEnemiesDead) {
                 if (state.battle.isBoss) {
-                    state.battle.message = "CORE TITAN DESTROYED! The planet breathes again...";
+                    state.battle.message = "MISSION ACCOMPLISHED! The Reactor is disabled.";
                     setTimeout(() => {
-                        gainRewards(500, 1000);
-                        alert("Congratulations! You have saved the world from the industrial decay.");
+                        gainRewards(1000, 5000);
+                        alert("The Reunion has begun... To be continued in Part 2!");
                         state.screen = 'TITLE';
                     }, 3000);
                 } else {
-                    state.battle.message = "Victory! Gained 50 EXP and 100 Credits.";
+                    state.battle.message = "Victory! Gained EXP and Gil.";
                     setTimeout(() => {
-                        gainRewards(50, 100);
+                        gainRewards(100, 500);
                         state.screen = 'WORLD';
                     }, 1500);
                 }
             } else if (allPartyDead) {
-                state.battle.message = "Game Over...";
+                state.battle.message = "Game Over... The Planet is lost.";
                 setTimeout(() => location.reload(), 2000);
             }
         }
@@ -485,7 +496,7 @@
             const orb = ORBS[key];
             if (state.inventory.credits >= orb.cost) {
                 state.inventory.credits -= orb.cost;
-                state.inventory.orbs.push(orb);
+                state.inventory.materia.push(orb);
                 // Auto-equip for simplicity in this demo
                 state.party[0].orb = orb;
                 state.party[0].atk += orb.atk;
@@ -493,7 +504,7 @@
                 state.party[0].spd += orb.spd;
                 alert(`Purchased and equipped ${orb.name}!`);
             } else {
-                alert("Not enough credits!");
+                alert("Not enough Gil!");
             }
         }
 
@@ -535,14 +546,14 @@
         function checkEncounters() {
             const tile = WORLD_MAP[state.worldY][state.worldX];
 
-            // Boss Encounter at Sky Pillar
-            if (tile === TILES.TOWER) {
+            // Boss Encounter at Northern Crater
+            if (tile === TILES.CRATER) {
                 startBattle(true);
                 return;
             }
 
             // Random encounter logic
-            if (tile === TILES.DIRT || tile === TILES.RUIN) {
+            if (tile === TILES.SLUMS || tile === TILES.MAKO) {
                 if (Math.random() < 0.12) {
                     startBattle(false);
                 }
@@ -553,16 +564,16 @@
             state.screen = 'BATTLE';
             state.battle = {
                 enemies: isBoss ? [generateBoss()] : generateEnemies(),
-                party: state.party.map(p => ({ ...p, atb: 0 })),
+                party: state.party.map(p => ({ ...p, atb: 0, isGuarding: false })),
                 turn: null,
-                message: isBoss ? 'WARNING: CORE TITAN DETECTED!' : 'Enemies Appear!',
+                message: isBoss ? 'WARNING: AIR BUSTER DETECTED!' : 'Shinra Guards Attack!',
                 timer: 60,
                 isBoss: isBoss
             };
         }
 
         function generateBoss() {
-            return { name: 'Core Titan', hp: 500, maxHp: 500, atk: 40, def: 20, spd: 15, color: '#8e44ad', id: 99 };
+            return { name: 'Air Buster', hp: 600, maxHp: 600, atk: 45, def: 25, spd: 15, color: '#e67e22', id: 99 };
         }
 
         function generateEnemies() {
