@@ -70,6 +70,33 @@
             CRATER: 6  // Northern Crater
         };
 
+        // Camera for 3D Projection
+        const camera = {
+            x: 0,
+            y: 0,
+            height: 400,
+            tilt: 0.6, // Perspective tilt
+            zoom: 1.0,
+            fov: 300
+        };
+
+        // 3D to 2D Projection
+        function project(x, y, z = 0) {
+            // Translate to camera
+            const dx = x - (state.worldX * TILE_SIZE + TILE_SIZE / 2);
+            const dy = y - (state.worldY * TILE_SIZE + TILE_SIZE / 2);
+
+            // Perspective tilt
+            const pz = dy * Math.sin(camera.tilt) + z + camera.fov;
+            const py = dy * Math.cos(camera.tilt);
+
+            const scale = camera.fov / pz;
+            const sx = 400 + dx * scale;
+            const sy = 300 + py * scale;
+
+            return { x: sx, y: sy, scale: scale };
+        }
+
         // Game State
         const state = {
             screen: 'TITLE',
@@ -207,22 +234,50 @@
         }
 
         function drawBattle() {
-            ctx.fillStyle = '#000';
+            ctx.fillStyle = '#111';
             ctx.fillRect(0, 0, 800, 600);
 
-            // Draw Enemies
+            // Draw 3D Battle Floor
+            ctx.strokeStyle = '#222';
+            for (let i = 0; i <= 10; i++) {
+                // Perspective lines
+                ctx.beginPath();
+                ctx.moveTo(400 - 400 * (i/10), 400);
+                ctx.lineTo(400 - 1000 * (i/10), 600);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(400 + 400 * (i/10), 400);
+                ctx.lineTo(400 + 1000 * (i/10), 600);
+                ctx.stroke();
+            }
+
+            // Draw Enemies in Perspective
             state.battle.enemies.forEach((e, i) => {
                 if (e.hp > 0) {
-                    drawSprite(2 + i * 4, 4, e.color, '#333');
+                    const ex = 200 + i * 120;
+                    const ey = 250; // Shifted up
+                    const scale = 0.8 + (ey - 200) / 300;
+                    drawSprite(ex, ey, e.color, '#333', scale);
+
                     ctx.fillStyle = 'white';
-                    ctx.font = '16px Courier New';
+                    ctx.font = '14px Courier New';
                     ctx.textAlign = 'center';
-                    ctx.fillText(e.name, 120 + i*200, 140);
+                    ctx.fillText(e.name, ex, ey - 50);
                     // Enemy HP bar
                     ctx.fillStyle = '#333';
-                    ctx.fillRect(70 + i*200, 150, 100, 5);
+                    ctx.fillRect(ex - 40, ey - 45, 80, 4);
                     ctx.fillStyle = '#2ecc71';
-                    ctx.fillRect(70 + i*200, 150, (e.hp/e.maxHp) * 100, 5);
+                    ctx.fillRect(ex - 40, ey - 45, (e.hp/e.maxHp) * 80, 4);
+                }
+            });
+
+            // Draw Party in Perspective (Cloud, Tifa, Aerith)
+            state.battle.party.forEach((p, i) => {
+                if (p.hp > 0) {
+                    const px = 550 + i * 50;
+                    const py = 320 + i * 40; // Shifted up
+                    const scale = 1.0 + (py - 250) / 300;
+                    drawSprite(px, py, p.color, p.hair, scale);
                 }
             });
 
@@ -244,22 +299,22 @@
                 ctx.fillRect(480, y-15, p.atb * 2, 15);
             });
 
-            // Message Box
-            drawUIBox(10, 340, 780, 50);
+            // Message Box (Top)
+            drawUIBox(10, 10, 780, 50);
             ctx.fillStyle = 'white';
             ctx.font = '16px Courier New';
             ctx.textAlign = 'left';
-            ctx.fillText(state.battle.message, 30, 372);
+            ctx.fillText(state.battle.message, 30, 42);
 
             // Action Menu if it's player's turn
             if (state.battle.turn) {
-                drawUIBox(600, 150, 180, 180);
+                drawUIBox(600, 200, 180, 180);
                 ctx.fillStyle = 'white';
-                ctx.fillText("> [Z] Attack", 620, 185);
+                ctx.fillText("> [Z] Attack", 620, 235);
                 const abilityName = state.battle.turn.orb ? state.battle.turn.orb.skill : "Ability";
-                ctx.fillText(`  [X] ${abilityName}`, 620, 215);
-                ctx.fillText("  [C] Guard", 620, 245);
-                ctx.fillText("  [V] Item", 620, 275);
+                ctx.fillText(`  [X] ${abilityName}`, 620, 265);
+                ctx.fillText("  [C] Guard", 620, 295);
+                ctx.fillText("  [V] Item", 620, 325);
             }
         }
 
@@ -277,22 +332,35 @@
         }
 
         function drawWorld() {
-            // Draw Tiles
+            // Draw Tiles in Perspective
             for (let y = 0; y < MAP_HEIGHT; y++) {
                 for (let x = 0; x < MAP_WIDTH; x++) {
                     const tile = WORLD_MAP[y][x];
-                    ctx.fillStyle = getTileColor(tile);
-                    ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
 
-                    // Grid lines for "PS1 low-poly" feel
-                    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-                    ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                    // Project 4 corners
+                    const c1 = project(x * TILE_SIZE, y * TILE_SIZE);
+                    const c2 = project((x + 1) * TILE_SIZE, y * TILE_SIZE);
+                    const c3 = project((x + 1) * TILE_SIZE, (y + 1) * TILE_SIZE);
+                    const c4 = project(x * TILE_SIZE, (y + 1) * TILE_SIZE);
+
+                    ctx.fillStyle = getTileColor(tile);
+                    ctx.beginPath();
+                    ctx.moveTo(c1.x, c1.y);
+                    ctx.lineTo(c2.x, c2.y);
+                    ctx.lineTo(c3.x, c3.y);
+                    ctx.lineTo(c4.x, c4.y);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+                    ctx.stroke();
                 }
             }
 
             // Draw NPCs
             state.npcs.forEach(n => {
-                drawSprite(n.x, n.y, '#e74c3c', '#5d4037');
+                const p = project(n.x * TILE_SIZE + TILE_SIZE/2, n.y * TILE_SIZE + TILE_SIZE/2);
+                drawSprite(p.x, p.y, '#e74c3c', '#5d4037', p.scale);
             });
 
             // Draw Party
@@ -320,30 +388,35 @@
 
         function drawParty() {
             // Draw followers first
-            const follower1 = state.history[2] || {x: state.worldX, y: state.worldY};
-            const follower2 = state.history[5] || {x: state.worldX, y: state.worldY};
+            const f1 = state.history[2] || {x: state.worldX, y: state.worldY};
+            const f2 = state.history[5] || {x: state.worldX, y: state.worldY};
 
-            drawSprite(follower2.x, follower2.y, state.party[2].color, state.party[2].hair);
-            drawSprite(follower1.x, follower1.y, state.party[1].color, state.party[1].hair);
-            drawSprite(state.worldX, state.worldY, state.party[0].color, state.party[0].hair);
+            const p1 = project(f2.x * TILE_SIZE + TILE_SIZE/2, f2.y * TILE_SIZE + TILE_SIZE/2);
+            const p2 = project(f1.x * TILE_SIZE + TILE_SIZE/2, f1.y * TILE_SIZE + TILE_SIZE/2);
+            const p3 = project(state.worldX * TILE_SIZE + TILE_SIZE/2, state.worldY * TILE_SIZE + TILE_SIZE/2);
+
+            drawSprite(p1.x, p1.y, state.party[2].color, state.party[2].hair, p1.scale);
+            drawSprite(p2.x, p2.y, state.party[1].color, state.party[1].hair, p2.scale);
+            drawSprite(p3.x, p3.y, state.party[0].color, state.party[0].hair, p3.scale);
         }
 
-        function drawSprite(x, y, color, hairColor = '#ff0000') {
-            const px = x * TILE_SIZE;
-            const py = y * TILE_SIZE;
+        function drawSprite(sx, sy, color, hairColor = '#ff0000', scale = 1.0) {
+            const size = 32 * scale;
+            const ox = sx - size / 2;
+            const oy = sy - size; // Anchor to bottom
 
             // Body/Outfit
             ctx.fillStyle = color;
-            ctx.fillRect(px + 6, py + 12, 28, 24);
+            ctx.fillRect(ox + 6 * scale, oy + 12 * scale, 28 * scale, 24 * scale);
 
             // Head/Hair
             ctx.fillStyle = hairColor;
-            ctx.fillRect(px + 8, py + 4, 24, 12);
+            ctx.fillRect(ox + 8 * scale, oy + 4 * scale, 24 * scale, 12 * scale);
 
             // Eyes (materia-glow for SOLDIER feel)
             ctx.fillStyle = '#00ffff';
-            ctx.fillRect(px + 12, py + 10, 3, 3);
-            ctx.fillRect(px + 24, py + 10, 3, 3);
+            ctx.fillRect(ox + 12 * scale, oy + 10 * scale, 3 * scale, 3 * scale);
+            ctx.fillRect(ox + 24 * scale, oy + 10 * scale, 3 * scale, 3 * scale);
         }
 
         function drawUIBox(x, y, w, h) {
