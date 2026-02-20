@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crystal Fate: Industrial Echoes</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        canvas {
+            border: 4px solid #444;
+            image-rendering: pixelated;
+            background-color: #000;
+        }
+        #game-container {
+            position: relative;
+        }
+        .ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 800px;
+            height: 600px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+    </div>
+
+    <script>
+        /**
+         * CRYSTAL FATE: INDUSTRIAL ECHOES
+         * A PS1-style JRPG built with Vanilla JS and HTML5 Canvas.
+         *
+         * ระบบหลัก:
+         * - World Exploration: เดินบนแผนที่ Grid 20x15
+         * - Party System: มีเพื่อนเดินตามหลัง
+         * - ATB Battle: ต่อสู้แบบเกจเวลา
+         * - Progression: เก็บ EXP เลเวลอัป และซื้อ Energy Orb เสริมแกร่ง
+         */
+
+        /**
+         * CONSTANTS & DATA STRUCTURES
+         */
+        const TILE_SIZE = 40;
+        const MAP_WIDTH = 20;
+        const MAP_HEIGHT = 15;
+
+        // Tile Types
+        const TILES = {
+            VOID: 0,
+            IRON: 1, // Ironhaven
+            DIRT: 2, // Dust Frontier
+            RUIN: 3, // Reactor Ruin
+            WALL: 4,
+            DOOR: 5,
+            TOWER: 6 // Sky Pillar
+        };
+
+        // Game State
+        const state = {
+            screen: 'TITLE', // TITLE, WORLD, BATTLE, MENU, DIALOGUE, SHOP
+            worldX: 5,
+            worldY: 5,
+            playerDir: 'down',
+            party: [],
+            inventory: {
+                credits: 500,
+                items: [{ name: 'Repair Kit', heal: 100, count: 3 }],
+                orbs: []
+            },
+            history: [], // For party follow effect
+            currentMap: 'WORLD',
+            dialogue: null,
+            battle: null,
+            quests: {
+                main: 0 // 0: Start, 1: Go to Ruin, 2: Beat Boss
+            },
+            npcs: [
+                { x: 2, y: 2, name: 'Mayor', msg: 'Welcome to Ironhaven. The reactor is leaking again...' },
+                { x: 8, y: 5, name: 'Scout', msg: 'Watch out for Rust Hounds in the Dust Frontier!' },
+                { x: 15, y: 9, name: 'Hermit', msg: 'The Sky Pillar... only the chosen one can enter.' },
+                { x: 5, y: 2, name: 'Merchant', msg: 'Want some Energy Orbs?', shop: true }
+            ]
+        };
+
+        // Character Templates
+        const CHAR_DATA = [
+            { id: 0, name: 'Kaelen', job: 'Mercenary', hp: 200, maxHp: 200, en: 50, maxEn: 50, atk: 25, def: 15, spd: 10, color: '#3498db', orb: null, exp: 0, level: 1 },
+            { id: 1, name: 'Lyra', job: 'Mechanic', hp: 150, maxHp: 150, en: 80, maxEn: 80, atk: 18, def: 10, spd: 15, color: '#e67e22', orb: null, exp: 0, level: 1 },
+            { id: 2, name: 'Caelum', job: 'Oracle', hp: 120, maxHp: 120, en: 150, maxEn: 150, atk: 12, def: 8, spd: 12, color: '#f1c40f', orb: null, exp: 0, level: 1 }
+        ];
+
+        // Orb Types
+        const ORBS = {
+            FLAME: { name: 'Flame Orb', atk: 5, def: 0, spd: 0, skill: 'Heat Pulse', cost: 15 },
+            PULSE: { name: 'Pulse Orb', atk: 0, def: 0, spd: 8, skill: 'Haste', cost: 20 },
+            GUARD: { name: 'Guard Orb', atk: 0, def: 10, spd: -2, skill: 'Iron Wall', cost: 10 }
+        };
+
+        // Initialize Party
+        state.party = JSON.parse(JSON.stringify(CHAR_DATA));
+
+        // World Map Layout (20x15)
+        const WORLD_MAP = [
+            [4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4],
+            [4,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,4],
+            [4,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,4],
+            [4,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,4],
+            [4,1,1,1,1,1,1,1,1,2,2,2,2,2,2,1,1,1,1,4],
+            [4,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,1,1,1,4],
+            [4,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,1,1,4],
+            [4,1,1,1,2,2,2,2,3,3,3,2,2,2,2,2,2,1,1,4],
+            [4,1,1,2,2,2,2,3,3,3,3,3,2,2,2,2,2,2,1,4],
+            [4,1,2,2,2,2,2,3,3,3,3,3,2,2,2,6,2,2,2,4],
+            [4,2,2,2,2,2,2,2,3,3,3,2,2,2,2,2,2,2,2,4],
+            [4,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,4],
+            [4,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,4],
+            [4,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,4],
+            [4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4]
+        ];
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (state.screen === 'TITLE') {
+                drawTitle();
+            } else if (state.screen === 'WORLD') {
+                drawWorld();
+            } else if (state.screen === 'BATTLE') {
+                updateBattle();
+                drawBattle();
+            } else if (state.screen === 'DIALOGUE') {
+                drawWorld(); // Keep world in background
+                drawDialogue();
+            } else if (state.screen === 'SHOP') {
+                drawShop();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function drawShop() {
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, 800, 600);
+            drawUIBox(50, 50, 700, 500);
+            ctx.fillStyle = 'white';
+            ctx.font = '24px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText("ENERGY ORB SHOP", 400, 100);
+
+            ctx.textAlign = 'left';
+            ctx.font = '18px Courier New';
+            let i = 0;
+            for (let key in ORBS) {
+                const orb = ORBS[key];
+                ctx.fillText(`[${i+1}] ${orb.name} - ${orb.cost} Credits`, 100, 180 + i * 60);
+                ctx.font = '14px Courier New';
+                ctx.fillText(`    (+${orb.atk} ATK, +${orb.def} DEF, +${orb.spd} SPD) Skill: ${orb.skill}`, 100, 205 + i * 60);
+                ctx.font = '18px Courier New';
+                i++;
+            }
+
+            ctx.fillText(`Current Credits: ${state.inventory.credits}`, 100, 500);
+            ctx.fillText("Press [1-3] to Buy, [X] to Exit", 100, 530);
+        }
+
+        function drawDialogue() {
+            drawUIBox(50, 400, 700, 150);
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Courier New';
+            ctx.textAlign = 'left';
+            ctx.fillText(state.dialogue.name + ":", 70, 440);
+
+            // Basic text wrapping
+            const words = state.dialogue.msg.split(' ');
+            let line = '';
+            let y = 480;
+            words.forEach(word => {
+                if ((line + word).length > 50) {
+                    ctx.fillText(line, 70, y);
+                    line = word + ' ';
+                    y += 30;
+                } else {
+                    line += word + ' ';
+                }
+            });
+            ctx.fillText(line, 70, y);
+            ctx.font = '14px Courier New';
+            ctx.fillText("Press [Z] to close", 580, 530);
+        }
+
+        function drawBattle() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, 800, 600);
+
+            // Draw Enemies
+            state.battle.enemies.forEach((e, i) => {
+                if (e.hp > 0) {
+                    drawSprite(2 + i * 4, 4, e.color);
+                    ctx.fillStyle = 'white';
+                    ctx.font = '16px Courier New';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(e.name, 120 + i*200, 140);
+                    // Enemy HP bar
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(70 + i*200, 150, 100, 5);
+                    ctx.fillStyle = '#2ecc71';
+                    ctx.fillRect(70 + i*200, 150, (e.hp/e.maxHp) * 100, 5);
+                }
+            });
+
+            // Draw Party Status
+            drawUIBox(10, 400, 780, 190);
+            state.battle.party.forEach((p, i) => {
+                const y = 430 + i * 50;
+                ctx.fillStyle = p.hp > 0 ? 'white' : 'gray';
+                ctx.font = '18px Courier New';
+                ctx.textAlign = 'left';
+                ctx.fillText(p.name, 40, y);
+                ctx.fillText(`HP: ${Math.ceil(p.hp)}/${p.maxHp}`, 150, y);
+                ctx.fillText(`EN: ${p.en}`, 320, y);
+
+                // ATB Bar
+                ctx.fillStyle = '#333';
+                ctx.fillRect(480, y-15, 200, 15);
+                ctx.fillStyle = p.atb >= 100 ? '#f1c40f' : '#3498db';
+                ctx.fillRect(480, y-15, p.atb * 2, 15);
+            });
+
+            // Message Box
+            drawUIBox(10, 340, 780, 50);
+            ctx.fillStyle = 'white';
+            ctx.font = '16px Courier New';
+            ctx.textAlign = 'left';
+            ctx.fillText(state.battle.message, 30, 372);
+
+            // Action Menu if it's player's turn
+            if (state.battle.turn) {
+                drawUIBox(600, 150, 180, 180);
+                ctx.fillStyle = 'white';
+                ctx.fillText("> [Z] Attack", 620, 185);
+                const abilityName = state.battle.turn.orb ? state.battle.turn.orb.skill : "Ability";
+                ctx.fillText(`  [X] ${abilityName}`, 620, 215);
+                ctx.fillText("  [C] Guard", 620, 245);
+                ctx.fillText("  [V] Item", 620, 275);
+            }
+        }
+
+        function drawTitle() {
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, 800, 600);
+            ctx.fillStyle = 'white';
+            ctx.font = '40px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText('CRYSTAL FATE', 400, 250);
+            ctx.font = '20px Courier New';
+            ctx.fillText('INDUSTRIAL ECHOES', 400, 300);
+            ctx.fillText('Press SPACE to Start', 400, 450);
+        }
+
+        function drawWorld() {
+            // Draw Tiles
+            for (let y = 0; y < MAP_HEIGHT; y++) {
+                for (let x = 0; x < MAP_WIDTH; x++) {
+                    const tile = WORLD_MAP[y][x];
+                    ctx.fillStyle = getTileColor(tile);
+                    ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+
+                    // Grid lines for "PS1 low-poly" feel
+                    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+                    ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                }
+            }
+
+            // Draw NPCs
+            state.npcs.forEach(n => {
+                drawSprite(n.x, n.y, '#e74c3c');
+            });
+
+            // Draw Party
+            drawParty();
+
+            // UI Hint
+            drawUIBox(10, 540, 780, 50);
+            ctx.fillStyle = 'white';
+            ctx.font = '16px Courier New';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Ironhaven Frontier - [${state.worldX}, ${state.worldY}] | HP: ${state.party[0].hp}/${state.party[0].maxHp}`, 30, 572);
+        }
+
+        function getTileColor(tile) {
+            switch(tile) {
+                case TILES.IRON: return '#2c3e50';
+                case TILES.DIRT: return '#95a5a6';
+                case TILES.RUIN: return '#7f8c8d';
+                case TILES.WALL: return '#1a1a1a';
+                case TILES.TOWER: return '#34495e';
+                default: return '#000';
+            }
+        }
+
+        function drawParty() {
+            // Draw followers first
+            const follower1 = state.history[2] || {x: state.worldX, y: state.worldY};
+            const follower2 = state.history[5] || {x: state.worldX, y: state.worldY};
+
+            drawSprite(follower2.x, follower2.y, state.party[2].color);
+            drawSprite(follower1.x, follower1.y, state.party[1].color);
+            drawSprite(state.worldX, state.worldY, state.party[0].color);
+        }
+
+        function drawSprite(x, y, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(x * TILE_SIZE + 4, y * TILE_SIZE + 4, 32, 32);
+            // Eyes
+            ctx.fillStyle = 'white';
+            ctx.fillRect(x * TILE_SIZE + 8, y * TILE_SIZE + 10, 4, 4);
+            ctx.fillRect(x * TILE_SIZE + 20, y * TILE_SIZE + 10, 4, 4);
+        }
+
+        function drawUIBox(x, y, w, h) {
+            ctx.fillStyle = 'rgba(0, 0, 150, 0.8)'; // Classic JRPG Blue
+            ctx.fillRect(x, y, w, h);
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, y, w, h);
+        }
+
+        window.addEventListener('keydown', e => {
+            if (state.screen === 'TITLE' && e.code === 'Space') {
+                state.screen = 'WORLD';
+                // Initialize history
+                for(let i=0; i<10; i++) state.history.push({x: state.worldX, y: state.worldY});
+                return;
+            }
+
+            if (state.screen === 'WORLD') {
+                if (e.key === 'ArrowUp') movePlayer(0, -1, 'up');
+                if (e.key === 'ArrowDown') movePlayer(0, 1, 'down');
+                if (e.key === 'ArrowLeft') movePlayer(-1, 0, 'left');
+                if (e.key === 'ArrowRight') movePlayer(1, 0, 'right');
+                if (e.key === 'z' || e.key === 'Z') interact();
+            }
+
+            if (state.screen === 'DIALOGUE') {
+                if (e.key === 'z' || e.key === 'Z') {
+                    if (state.dialogue.shop) {
+                        state.screen = 'SHOP';
+                    } else {
+                        state.screen = 'WORLD';
+                    }
+                }
+            }
+
+            if (state.screen === 'SHOP') {
+                if (e.key === '1') buyOrb('FLAME');
+                if (e.key === '2') buyOrb('PULSE');
+                if (e.key === '3') buyOrb('GUARD');
+                if (e.key === 'x' || e.key === 'X') state.screen = 'WORLD';
+            }
+
+            if (state.screen === 'BATTLE' && state.battle.turn) {
+                if (e.key === 'z' || e.key === 'Z') performAction('ATTACK');
+                if (e.key === 'x' || e.key === 'X') performAction('ABILITY');
+                if (e.key === 'c' || e.key === 'C') performAction('GUARD');
+                if (e.key === 'v' || e.key === 'V') performAction('ITEM');
+            }
+        });
+
+        function performAction(type) {
+            const actor = state.battle.turn;
+            const enemy = state.battle.enemies.find(e => e.hp > 0);
+            if (!enemy && type !== 'ITEM') return;
+
+            // Reset guard if it was active
+            if (actor.isGuarding) {
+                actor.def /= 2;
+                actor.isGuarding = false;
+            }
+
+            if (type === 'ATTACK') {
+                const dmg = Math.max(1, (actor.atk * 2) - enemy.def);
+                enemy.hp -= dmg;
+                state.battle.message = `${actor.name} attacks ${enemy.name} for ${dmg}!`;
+            } else if (type === 'ABILITY') {
+                const cost = actor.orb ? actor.orb.cost : 15;
+                const skillName = actor.orb ? actor.orb.skill : "Skill";
+                if (actor.en >= cost) {
+                    actor.en -= cost;
+                    const dmg = actor.atk * 3;
+                    enemy.hp -= dmg;
+                    state.battle.message = `${actor.name} uses ${skillName} on ${enemy.name} for ${dmg}!`;
+                } else {
+                    state.battle.message = "Not enough Energy!";
+                    return;
+                }
+            } else if (type === 'GUARD') {
+                actor.def *= 2;
+                actor.isGuarding = true;
+                state.battle.message = `${actor.name} is guarding!`;
+            } else if (type === 'ITEM') {
+                const item = state.inventory.items[0];
+                if (item && item.count > 0) {
+                    item.count--;
+                    actor.hp = Math.min(actor.maxHp, actor.hp + item.heal);
+                    state.battle.message = `${actor.name} uses ${item.name} and heals!`;
+                } else {
+                    state.battle.message = "No items left!";
+                    return;
+                }
+            }
+
+            if (enemy && enemy.hp <= 0) enemy.hp = 0;
+
+            // Finish turn
+            actor.atb = 0;
+            state.battle.turn = null;
+
+            checkBattleEnd();
+        }
+
+        function checkBattleEnd() {
+            const allEnemiesDead = state.battle.enemies.every(e => e.hp <= 0);
+            const allPartyDead = state.battle.party.every(p => p.hp <= 0);
+
+            if (allEnemiesDead) {
+                if (state.battle.isBoss) {
+                    state.battle.message = "CORE TITAN DESTROYED! The planet breathes again...";
+                    setTimeout(() => {
+                        gainRewards(500, 1000);
+                        alert("Congratulations! You have saved the world from the industrial decay.");
+                        state.screen = 'TITLE';
+                    }, 3000);
+                } else {
+                    state.battle.message = "Victory! Gained 50 EXP and 100 Credits.";
+                    setTimeout(() => {
+                        gainRewards(50, 100);
+                        state.screen = 'WORLD';
+                    }, 1500);
+                }
+            } else if (allPartyDead) {
+                state.battle.message = "Game Over...";
+                setTimeout(() => location.reload(), 2000);
+            }
+        }
+
+        function gainRewards(exp, credits) {
+            state.inventory.credits += credits;
+            let levelUps = [];
+            state.party.forEach(p => {
+                p.exp += exp;
+                while (p.exp >= 100) {
+                    p.level++;
+                    p.exp -= 100;
+                    p.maxHp += 20;
+                    p.hp = p.maxHp;
+                    p.atk += 5;
+                    p.def += 3;
+                    levelUps.push(`${p.name} reached Lv ${p.level}!`);
+                }
+            });
+            if (levelUps.length > 0) {
+                alert("Level Up!\n" + levelUps.join('\n'));
+            }
+        }
+
+        function buyOrb(key) {
+            const orb = ORBS[key];
+            if (state.inventory.credits >= orb.cost) {
+                state.inventory.credits -= orb.cost;
+                state.inventory.orbs.push(orb);
+                // Auto-equip for simplicity in this demo
+                state.party[0].orb = orb;
+                state.party[0].atk += orb.atk;
+                state.party[0].def += orb.def;
+                state.party[0].spd += orb.spd;
+                alert(`Purchased and equipped ${orb.name}!`);
+            } else {
+                alert("Not enough credits!");
+            }
+        }
+
+        function interact() {
+            let nx = state.worldX;
+            let ny = state.worldY;
+            if (state.playerDir === 'up') ny--;
+            if (state.playerDir === 'down') ny++;
+            if (state.playerDir === 'left') nx--;
+            if (state.playerDir === 'right') nx++;
+
+            const npc = state.npcs.find(n => n.x === nx && n.y === ny);
+            if (npc) {
+                state.screen = 'DIALOGUE';
+                state.dialogue = npc;
+            }
+        }
+
+        function movePlayer(dx, dy, dir) {
+            const nextX = state.worldX + dx;
+            const nextY = state.worldY + dy;
+            state.playerDir = dir;
+
+            // Collision check
+            if (nextX >= 0 && nextX < MAP_WIDTH && nextY >= 0 && nextY < MAP_HEIGHT) {
+                if (WORLD_MAP[nextY][nextX] !== TILES.WALL) {
+                    // Update history for following
+                    state.history.unshift({x: state.worldX, y: state.worldY});
+                    if (state.history.length > 20) state.history.pop();
+
+                    state.worldX = nextX;
+                    state.worldY = nextY;
+
+                    checkEncounters();
+                }
+            }
+        }
+
+        function checkEncounters() {
+            const tile = WORLD_MAP[state.worldY][state.worldX];
+
+            // Boss Encounter at Sky Pillar
+            if (tile === TILES.TOWER) {
+                startBattle(true);
+                return;
+            }
+
+            // Random encounter logic
+            if (tile === TILES.DIRT || tile === TILES.RUIN) {
+                if (Math.random() < 0.12) {
+                    startBattle(false);
+                }
+            }
+        }
+
+        function startBattle(isBoss = false) {
+            state.screen = 'BATTLE';
+            state.battle = {
+                enemies: isBoss ? [generateBoss()] : generateEnemies(),
+                party: state.party.map(p => ({ ...p, atb: 0 })),
+                turn: null,
+                message: isBoss ? 'WARNING: CORE TITAN DETECTED!' : 'Enemies Appear!',
+                timer: 60,
+                isBoss: isBoss
+            };
+        }
+
+        function generateBoss() {
+            return { name: 'Core Titan', hp: 500, maxHp: 500, atk: 40, def: 20, spd: 15, color: '#8e44ad', id: 99 };
+        }
+
+        function generateEnemies() {
+            const types = [
+                { name: 'Rust Hound', hp: 80, maxHp: 80, atk: 15, def: 5, spd: 8, color: '#95a5a6' },
+                { name: 'Reactor Spawn', hp: 60, maxHp: 60, atk: 20, def: 2, spd: 12, color: '#2ecc71' }
+            ];
+            const count = Math.floor(Math.random() * 2) + 1;
+            const enemies = [];
+            for(let i=0; i<count; i++) {
+                const t = types[Math.floor(Math.random() * types.length)];
+                enemies.push({ ...t, atb: 0, id: i });
+            }
+            return enemies;
+        }
+
+        /**
+         * BATTLE LOGIC
+         * อัปเดตเกจ ATB และจัดการเทิร์นของตัวละคร/ศัตรู
+         */
+        function updateBattle() {
+            if (state.battle.turn !== null) return; // รอการกดปุ่มจากผู้เล่น
+            if (state.battle.timer > 0) {
+                state.battle.timer--;
+                return;
+            }
+
+            // Update ATB
+            let turnFound = false;
+            state.battle.party.forEach(p => {
+                if (p.hp > 0 && !turnFound) {
+                    p.atb += p.spd * 0.1;
+                    if (p.atb >= 100) {
+                        p.atb = 100;
+                        state.battle.turn = p;
+                        state.battle.message = `${p.name}'s Turn!`;
+                        turnFound = true;
+                    }
+                }
+            });
+
+            state.battle.enemies.forEach(e => {
+                if (e.hp > 0 && !turnFound) {
+                    e.atb += e.spd * 0.1;
+                    if (e.atb >= 100) {
+                        e.atb = 0;
+                        enemyAction(e);
+                        state.battle.timer = 60; // 1 second delay
+                    }
+                }
+            });
+        }
+
+        function enemyAction(e) {
+            const target = state.battle.party.find(p => p.hp > 0);
+            if (!target) return;
+            const dmg = Math.max(1, e.atk - target.def);
+            target.hp -= dmg;
+            state.battle.message = `${e.name} attacks ${target.name} for ${dmg}!`;
+            if (target.hp < 0) target.hp = 0;
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
